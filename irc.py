@@ -1,5 +1,5 @@
-#   Irk: irc bot
-#   Copyright (C) 2016  Grayson Miller
+#   asIrk: asyncio irc bot
+#   Copyright (C) 2017  Grayson Miller
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License as published by
@@ -22,12 +22,11 @@ logger = logging.getLogger(__name__)
 
 
 default_client_config = {
-    'host': '', 'port': 6667, 'ipv6': False, 'ssl': False,
+    'host': '', 'port': 6667, 'ssl': False,
     'nick': '', 'pass': '',
     'ident': '', 'user': '',
     'mode': '+B', 'unused': '*',
-    'owner': '', 'owner_email': '',
-    'channels': []
+    'owner': '', 'owner_email': ''
 }
 
 
@@ -40,6 +39,10 @@ class IrcProtocol(asyncio.Protocol):
 
         self.users = {}
         self.channels = []
+
+        self.bot_callback = lambda x, y, z: None
+        self.last_dest = None
+        self.transport = None
 
         self.irc_events = {
             'PRIVMSG': self._handle_privmsg,
@@ -56,9 +59,6 @@ class IrcProtocol(asyncio.Protocol):
             'MODE': self._handle_mode,
             'PING': self._handle_server_ping,
         }
-
-        self.bot_callback = lambda x, y, z: None
-        self.last_dest = None
 
     # Protocol Events
     def connection_made(self, transport):

@@ -1,16 +1,32 @@
+#   asIrk: asyncio irc bot
+#   Copyright (C) 2017  Grayson Miller
+#
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU Affero General Public License for more details.
+#   You should have received a copy of the GNU Affero General Public License
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>
 import logging
 import asyncio
 import functools
 import time
 
 from irc import Irc, IrcProtocol
+from plugin import PluginManager
 
 
 logger = logging.getLogger(__name__)
 
 
-class IrcBot:
+class IrcBot(PluginManager):
     def __init__(self, loop, config):
+        super().__init__(None, config['plugin_path'])
         self.client_completed = asyncio.Future()
 
         self.loop = loop
@@ -48,10 +64,18 @@ class Irk(IrcBot):
     def __init__(self, loop, config):
         super().__init__(loop, config)
 
-        self.admin_commands = {'quit': self._cmd_quit
-                               }
-        self.commands = {'ping': self._cmd_ping
-                         }
+        self.admin_commands.update({'quit': self._cmd_quit,
+                                    'echo': self._cmd_echo,
+                                    'rawecho': self._cmd_rawecho,
+                                    'loaded': self._plugin_loaded,
+                                    'unload': self._plugin_unload,
+                                    'load': self._plugin_load,
+                                    'reload': self._plugin_reload
+                                    })
+
+        self.commands.update({'ping': self._cmd_ping,
+                              'help': self._cmd_help
+                              })
 
         self.command_symbol = '.'
         self.commander = None
@@ -60,6 +84,9 @@ class Irk(IrcBot):
         user, ident, host = prefix
 
         logger.debug("   |  {},{},{}".format(prefix, command, parameters))
+
+        for name, plugin in self.plugins.items():
+            plugin.msg_hook(prefix, command, parameters)
 
         if command == 'PRIVMSG':
             self.commander = user
@@ -85,13 +112,56 @@ class Irk(IrcBot):
             self.protocol.send_response(self.protocol.last_dest, "That nick is invalid.")
 
     # Bot commands
-    def _cmd_ping(self, prefix, channel, parameters):
+    def _cmd_ping(self, prefix, destination, parameters):
         user = parameters.split(' ')[1]
 
         unix_timestamp = str(time.time()).replace(".", " ")
         self.protocol.send(Irc.ctcp_ping(user, unix_timestamp))
         logger.info("PNG| {}".format(user))
 
-
-    def _cmd_quit(self, prefix, channel, parameters):
+    def _cmd_quit(self, prefix, destination, parameters):
         self.stop()
+
+    def _cmd_echo(self, prefix, destination, parameters):
+        self.protocol.send_response(destination, parameters.split(' ', 1)[1])
+
+    def _cmd_rawecho(self, prefix, destination, parameters):
+        self.protocol.send(parameters.split(' ', 1)[1])
+
+    def _cmd_help(self, prefix, destination, parameters):
+        cmds = {'user': [cmd for cmd in self.commands],
+                'admin': [cmd for cmd in self.admin_commands]}
+
+        self.protocol.send_response(destination, cmds)
+
+    # Plugin commands
+    def _plugin_loaded(self, prefix, destination, parameters):
+        self.protocol.send_response(destination, "Loaded plugins: {}".format([i for i in self.plugins.keys()]))
+
+    def _plugin_reload(self, prefix, destination, parameters):
+        plugin_name = parameters.split(' ')[1]
+
+        if plugin_name in self.plugins:
+            self._plugin_unload(prefix, destination, parameters)
+            self._plugin_load(prefix, destination, parameters)
+
+    def _plugin_unload(self, prefix, destination, parameters):
+        plugin_name = parameters.split(' ')[1]
+
+        if plugin_name == "all":
+            self.unload_plugins()
+            self.protocol.send_response(destination, "All plugins unloaded.")
+
+        elif plugin_name in self.plugins:
+            self.unload_plugin(plugin_name)
+            self.protocol.send_response(destination, "Plugin {} unloaded.".format(plugin_name))
+
+    def _plugin_load(self, prefix, destination, parameters):
+        plugin_name = parameters.split(' ')[1]
+
+        if plugin_name == "all":
+            self.load_plugins()
+            self.protocol.send_response(destination, "All plugins loaded: {}".format([i for i in self.plugins.keys()]))
+        else:
+            self.load_plugin(plugin_name)
+            self.protocol.send_response(destination, "Plugin {} loaded.".format(plugin_name))
