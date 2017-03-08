@@ -27,7 +27,7 @@ class Plugin:
         self.admin_commands = {}
         self.commands = {}
 
-    def msg_hook(self, prefix, command, parameters):
+    def privmsg_hook(self, prefix, command, parameters):
         raise NotImplemented
 
 
@@ -48,7 +48,7 @@ class PluginManager:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
         except Exception as e:
-            logger.warning(e)
+            logger.warning("PGN| {}".format(e))
             return
 
         try:
@@ -56,10 +56,11 @@ class PluginManager:
         except AttributeError:
             logger.warning("Invalid Plugin: {}".format(plugin_name))
             return
-
         self.commands.update(plugin.commands)
         self.admin_commands.update(plugin.admin_commands)
         self.plugins[plugin_name] = plugin
+
+        return True
 
     def unload_plugin(self, plugin_name):
         try:

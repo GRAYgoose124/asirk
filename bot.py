@@ -48,6 +48,8 @@ class IrcBot(PluginManager):
         self.transport, self.protocol = self.loop.run_until_complete(self.client)
         self.protocol.set_callback(self.process)
 
+        self.load_plugins()
+
     def stop(self):
         self.protocol.send(Irc.quit("Stopping..."))
         self.transport.close()
@@ -83,37 +85,61 @@ class Irk(IrcBot):
     def process(self, prefix, command, parameters):
         user, ident, host = prefix
 
-        logger.debug("   |  {},{},{}".format(prefix, command, parameters))
-
-        for name, plugin in self.plugins.items():
-            plugin.msg_hook(prefix, command, parameters)
+        start = time.clock()
 
         if command == 'PRIVMSG':
             self.commander = user
             destination, message = Irc.split_privmsg(parameters)
 
+            if destination == self.config['nick']:
+                destination = user
+
+            for name, plugin in self.plugins.items():
+                try:
+                    #:TODO catch plugin exceptions so that they won't break the bot.
+                    plugin.privmsg_hook(prefix, command, parameters)
+                except NotImplemented:
+                    pass
+                except Exception as e:
+                    logger.debug(e)
+
             bot_cmd = message.split(' ')[0]
             if self.command_symbol == bot_cmd[0]:
                 bot_cmd = bot_cmd[1:]
 
-                if self.commander == self.config['owner']:
-                    for k, v in self.admin_commands.items():
+                try:
+                    # TODO: Better admin authentication, multiuser
+                    # TODO: multinetwork
+                    if self.commander == self.config['owner']:
+                        for k, v in self.admin_commands.items():
+                            if bot_cmd == k:
+                                v(prefix, destination, message)
+                                break
+                    for k, v in self.commands.items():
                         if bot_cmd == k:
                             v(prefix, destination, message)
-
-                for k, v in self.commands.items():
-                    if bot_cmd == k:
-                        v(prefix, destination, message)
-
+                            break
+                except Exception as e:
+                    logger.debug(e)
         elif command == 'NOTICE':
             pass
-
         elif command == '401':
             self.protocol.send_response(self.protocol.last_dest, "That nick is invalid.")
 
-    # Bot commands
+        elapsed = time.clock() - start
+        logger.debug("TTP| {}".format(elapsed))
+
+       # Bot commands
     def _cmd_ping(self, prefix, destination, parameters):
-        user = parameters.split(' ')[1]
+        try:
+            user = parameters.split(' ')[1]
+        except IndexError:
+            self.protocol.send_response(destination, "Incorrect ping command.")
+            return
+
+        if user == self.config['nick']:
+            self.protocol.send_response(destination, "THE FUCK YOU PING YOURSELF?")
+            return
 
         unix_timestamp = str(time.time()).replace(".", " ")
         self.protocol.send(Irc.ctcp_ping(user, unix_timestamp))
@@ -162,6 +188,8 @@ class Irk(IrcBot):
         if plugin_name == "all":
             self.load_plugins()
             self.protocol.send_response(destination, "All plugins loaded: {}".format([i for i in self.plugins.keys()]))
-        else:
-            self.load_plugin(plugin_name)
+        elif self.load_plugin(plugin_name) is not None:
             self.protocol.send_response(destination, "Plugin {} loaded.".format(plugin_name))
+        else:
+            self.protocol.send_response(destination, "Invalid plugin.")
+            

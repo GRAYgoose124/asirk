@@ -14,26 +14,27 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
 import logging
 import asyncio
+import uvloop
 import os
 
 from bot import Irk
 
-
+logging.basicConfig(level=logging.DEBUG, format='[%(levelname)7s] %(name)7s:%(lineno)4s | %(message)s')
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 
 def main():
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
 
-    # Plugin path set static with 'python asirk' from wd in mind.
+    # Plugin path set static with 'python asirk' with cwd in mind.
     config = {
-            'host': b'irc.foonetic.net', 'port': b'6697', 'ssl': True,
-            'nick': 'Duckborg', 'pass': 'fxcva',
-            'ident': '', 'user': 'Duckborg',
+            'host': b'irc.supernets.org', 'port': b'6667', 'ssl': False,
+            'nick': 'ducky', 'pass': '',
+            'ident': '', 'user': 'ducky',
             'mode': '+B', 'unused': '*',
-            'owner': 'graygoose124', 'owner_email': '',
-            'channels': ['#testgrounds'], 'plugin_path': os.path.join(os.getcwd(), 'asirk', 'plugins')
+            'owner': 'mrsnafu', 'owner_email': '',
+            'channels': ['#snafu'], 'plugin_path': os.path.join(os.getcwd(), 'asirk', 'plugins')
     }
 
     asirk = Irk(loop, config)

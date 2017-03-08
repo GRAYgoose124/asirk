@@ -1,4 +1,4 @@
-#   Irk: irc bot
+#   asIrk: asyncio irc bot
 #   Copyright (C) 2016  Grayson Miller
 #
 #   This program is free software: you can redistribute it and/or modify
@@ -19,23 +19,25 @@ from plugin import Plugin
 
 logger = logging.getLogger(__name__)
 
-import time
 
-class Simple(Plugin):
-    def __init__(self, protocol):
-        super().__init__(protocol)
-        self.commands = {
-            'pecho': self.test
-        }
+class Factoid(Plugin):
+        def __init__(self, protocol):
+            super().__init__(protocol)
 
-    def privmsg_hook(self, prefix, command, parameters):
-        logger.info("simple_hook: {} || {} || {}".format(prefix, command, parameters))
+            self.commands = {
+                'fact': self.new_factoid,
+                'rmfact': self.delete_factoid
+            }
 
-    def test(self, prefix, destination, message):       
-        message = message.split(' ', 1)[1]
+            self.db = []
+            self.db_path = None
 
-        # TODO: Plugin.irc_helpers
-        if destination == self.protocol.config['nick']:
-            destination = self.protocol.commander
+        def privmsg_hook(self, prefix, command, parameters):
+            pass
 
-        self.protocol.send_response(destination, message)
+        def new_factoid(self, prefix, destination, message):
+            self.protocol.send_response(destination, message)
+
+        def delete_factoid(self, prefix, command, parameters):
+            pass
+

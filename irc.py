@@ -44,6 +44,7 @@ class IrcProtocol(asyncio.Protocol):
         self.last_dest = None
         self.transport = None
 
+        # TODO: Callbacks for hooks from bot?
         self.irc_events = {
             'PRIVMSG': self._handle_privmsg,
             'NOTICE': self._handle_notice,
@@ -53,10 +54,10 @@ class IrcProtocol(asyncio.Protocol):
             '332': self._qno_handle,
             '353': self._handle_userlist_update,
             '366': self._qno_handle,
+            '376': self._handle_mode,
             '401': self._no_such_nick,
             '403': self._no_such_chan,
             '433': self._handle_433,
-            'MODE': self._handle_mode,
             'PING': self._handle_server_ping,
         }
 
@@ -217,10 +218,8 @@ class IrcProtocol(asyncio.Protocol):
     def _handle_mode(self, message):
         prefix, command, parameters = Irc.split_message(message)
 
-        # Auto-join servers after MODE received from NickServ.
-        if prefix.lower() == ':nickserv':
-            for channel in self.config['channels']:
-                self.send(Irc.join(channel))
+        for channel in self.config['channels']:
+            self.send(Irc.join(channel))
 
     def _handle_server_ping(self, message):
         prefix, command, parameters = Irc.split_message(message)
