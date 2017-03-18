@@ -32,6 +32,8 @@ class Factoid(Plugin):
             self.db = []
             self.db_path = None
 
+            self.hooks = ['action', 'reply']
+
         def privmsg_hook(self, prefix, command, parameters):
             pass
 
@@ -39,5 +41,4 @@ class Factoid(Plugin):
             self.protocol.send_response(destination, message)
 
         def delete_factoid(self, prefix, command, parameters):
-            pass
-
+            passi

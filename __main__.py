@@ -1,3 +1,4 @@
+#!python
 #   asIrk: asyncio irc bot
 #   Copyright (C) 2017  Grayson Miller
 #
@@ -19,7 +20,7 @@ import os
 
 from bot import Irk
 
-logging.basicConfig(level=logging.DEBUG, format='[%(levelname)7s] %(name)7s:%(lineno)4s | %(message)s')
+logging.basicConfig(level=logging.INFO, format='[%(levelname)7s] %(name)7s:%(lineno)4s |%(message)s')
 logger = logging.getLogger(__name__)
 
 

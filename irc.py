@@ -83,6 +83,7 @@ class IrcProtocol(asyncio.Protocol):
 
         for message in messages:
             if len(message) != 0:
+                # TODO: *event API 
                 prefix, command, parameters = Irc.split_message(message)
                 prefix = Irc.split_prefix(prefix)
 

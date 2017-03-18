@@ -16,6 +16,10 @@ import logging
 import asyncio
 import functools
 import time
+import os
+import sys
+import atexit
+import traceback
 
 from irc import Irc, IrcProtocol
 from plugin import PluginManager
@@ -67,20 +71,18 @@ class Irk(IrcBot):
         super().__init__(loop, config)
 
         self.admin_commands.update({'quit': self._cmd_quit,
-                                    'echo': self._cmd_echo,
-                                    'rawecho': self._cmd_rawecho,
-                                    'loaded': self._plugin_loaded,
-                                    'unload': self._plugin_unload,
-                                    'load': self._plugin_load,
-                                    'reload': self._plugin_reload
+                                    'restart': self._cmd_restart,
+                                    'plugin': self._cmd_plugin,
                                     })
 
-        self.commands.update({'ping': self._cmd_ping,
-                              'help': self._cmd_help
+        self.commands.update({'help': self._cmd_help
                               })
 
         self.command_symbol = '.'
         self.commander = None
+
+
+        self.elapsed = 0
 
     def process(self, prefix, command, parameters):
         user, ident, host = prefix
@@ -98,7 +100,7 @@ class Irk(IrcBot):
                 try:
                     #:TODO catch plugin exceptions so that they won't break the bot.
                     plugin.privmsg_hook(prefix, command, parameters)
-                except NotImplemented:
+                except NotImplementedError:
                     pass
                 except Exception as e:
                     logger.debug(e)
@@ -120,39 +122,33 @@ class Irk(IrcBot):
                             v(prefix, destination, message)
                             break
                 except Exception as e:
-                    logger.debug(e)
-        elif command == 'NOTICE':
-            pass
+                    traceback.print_exc(e)
+            elif command == 'NOTICE':
+                pass
         elif command == '401':
             self.protocol.send_response(self.protocol.last_dest, "That nick is invalid.")
 
-        elapsed = time.clock() - start
-        logger.debug("TTP| {}".format(elapsed))
+        if self.elapsed == 0:
+            average_div = 1.0
+        else:
+            average_div = 2.0
 
-       # Bot commands
-    def _cmd_ping(self, prefix, destination, parameters):
-        try:
-            user = parameters.split(' ')[1]
-        except IndexError:
-            self.protocol.send_response(destination, "Incorrect ping command.")
-            return
+        self.elapsed += time.clock() - start
+        self.elapsed = self.elapsed / average_div
 
-        if user == self.config['nick']:
-            self.protocol.send_response(destination, "THE FUCK YOU PING YOURSELF?")
-            return
-
-        unix_timestamp = str(time.time()).replace(".", " ")
-        self.protocol.send(Irc.ctcp_ping(user, unix_timestamp))
-        logger.info("PNG| {}".format(user))
+        logger.debug("TIM| bot processing time: avg. {:.3f} ms".format(self.elapsed))
 
     def _cmd_quit(self, prefix, destination, parameters):
         self.stop()
 
-    def _cmd_echo(self, prefix, destination, parameters):
-        self.protocol.send_response(destination, parameters.split(' ', 1)[1])
+    # TODO: document parameters api then wrap in *event
+    def _cmd_restart(self, prefix, destination, parameters):
+        def __restart():
+            python = sys.executable
+            os.execl(python, python, *sys.argv)
 
-    def _cmd_rawecho(self, prefix, destination, parameters):
-        self.protocol.send(parameters.split(' ', 1)[1])
+        atexit.register(__restart)
+        self.stop()
 
     def _cmd_help(self, prefix, destination, parameters):
         cmds = {'user': [cmd for cmd in self.commands],
@@ -160,36 +156,43 @@ class Irk(IrcBot):
 
         self.protocol.send_response(destination, cmds)
 
-    # Plugin commands
-    def _plugin_loaded(self, prefix, destination, parameters):
-        self.protocol.send_response(destination, "Loaded plugins: {}".format([i for i in self.plugins.keys()]))
+    def _cmd_plugin(self, prefix, destination, parameters):
+        plugin_cmd = parameters.split(' ')[1]
 
-    def _plugin_reload(self, prefix, destination, parameters):
-        plugin_name = parameters.split(' ')[1]
+        if plugin_cmd == 'loaded':
+            self.protocol.send_response(destination, "Loaded plugins: {}".format([i for i in self.plugins.keys()]))
 
-        if plugin_name in self.plugins:
-            self._plugin_unload(prefix, destination, parameters)
-            self._plugin_load(prefix, destination, parameters)
+        elif plugin_cmd == 'unload':
+            plugin_name = parameters.split(' ')[2]
 
-    def _plugin_unload(self, prefix, destination, parameters):
-        plugin_name = parameters.split(' ')[1]
+            if plugin_name == "all":
+                self.unload_plugins()
+                self.protocol.send_response(destination, "All plugins unloaded.")
+            elif plugin_name in self.plugins:
+                self.unload_plugin(plugin_name)
+                self.protocol.send_response(destination, "Plugin {} unloaded.".format(plugin_name))
 
-        if plugin_name == "all":
-            self.unload_plugins()
-            self.protocol.send_response(destination, "All plugins unloaded.")
+        elif plugin_cmd == 'load':
+            plugin_name = parameters.split(' ')[2]
 
-        elif plugin_name in self.plugins:
-            self.unload_plugin(plugin_name)
-            self.protocol.send_response(destination, "Plugin {} unloaded.".format(plugin_name))
+            if plugin_name == "all":
+                self.load_plugins()
+                self.protocol.send_response(destination, "All plugins loaded: {}".format([i for i in self.plugins.keys()]))
+            elif self.load_plugin(plugin_name) is not None:
+                self.protocol.send_response(destination, "Plugin {} loaded.".format(plugin_name))
+            else:
+                self.protocol.send_response(destination, "Invalid plugin.")
 
-    def _plugin_load(self, prefix, destination, parameters):
-        plugin_name = parameters.split(' ')[1]
+        elif plugin_cmd == 'reload':
+            plugin_name = parameters.split(' ')[2]
 
-        if plugin_name == "all":
-            self.load_plugins()
-            self.protocol.send_response(destination, "All plugins loaded: {}".format([i for i in self.plugins.keys()]))
-        elif self.load_plugin(plugin_name) is not None:
-            self.protocol.send_response(destination, "Plugin {} loaded.".format(plugin_name))
-        else:
-            self.protocol.send_response(destination, "Invalid plugin.")
-            
+            if plugin_name == "all":
+                self.unload_plugins()
+                self.load_plugins()
+                self.protocol.send_response(destination, "All plugins reloaded.")
+            elif plugin_name in self.plugins:
+                # TODO: Fix this...derp...
+                self._plugin_unload(prefix, destination, parameters)
+                self._plugin_load(prefix, destination, parameters)
+    # TODO: Plugin error responses, catch the splits exceptions
+
