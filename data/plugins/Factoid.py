@@ -13,6 +13,7 @@
 #   You should have received a copy of the GNU Affero General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
 import logging
+import re
 
 from plugin import Plugin
 
@@ -24,21 +25,35 @@ class Factoid(Plugin):
         def __init__(self, protocol):
             super().__init__(protocol)
 
-            self.commands = {
-                'fact': self.new_factoid,
+            self.admin_commands = {
                 'rmfact': self.delete_factoid
             }
-
+            
+            # TODO: mysql DB
             self.db = []
-            self.db_path = None
-
-            self.hooks = ['action', 'reply']
 
         def privmsg_hook(self, prefix, command, parameters):
+            # TODO: Standardize with commands + event API + documented values for PRIVSMG / CMD
+            sender = prefix[0]
+            destination, message = parameters.split(' ', 1)
+            message = message[1:]
+
+            # Factoid Response
+            # TODO: test for 90-95% similarity
+            for input, action, response in self.db:
+                if input in message:
+                    self.protocol.send_response(destination, response)
+
+            # New Factoid Creation
+            # TODO: store by index, one input/many responses
+            data = re.split("(.*) <(.*)> (.*)", message)
+            if data[0] == '' and data[-1] == '':
+                _, input, action, response, _ = data
+                self.db.append((input, action, response))
+                self.protocol.send_response(destination, "\'{} <{}> {}\' is now recorded.".format(input, action, response))
+
+        def list_factoids(self, prefix, command, parameters):
             pass
 
-        def new_factoid(self, prefix, destination, message):
-            self.protocol.send_response(destination, message)
-
         def delete_factoid(self, prefix, command, parameters):
-            passi
+            pass

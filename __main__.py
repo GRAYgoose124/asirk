@@ -1,4 +1,3 @@
-#!python
 #   asIrk: asyncio irc bot
 #   Copyright (C) 2017  Grayson Miller
 #
@@ -13,33 +12,42 @@
 #   GNU Affero General Public License for more details.
 #   You should have received a copy of the GNU Affero General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
-import logging
-import asyncio
-import uvloop
 import os
-
-from bot import Irk
+import asyncio
+import logging
+import argparse 
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)7s] %(name)7s:%(lineno)4s |%(message)s')
 logger = logging.getLogger(__name__)
 
+if os.name != 'nt':
+    try:
+        import uvloop
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    except:
+        logger.warn("Not using uvloop!")
+
+from bot import Irk
+from config import load_config, save_config
+
 
 def main():
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
 
-    # Plugin path set static with 'python asirk' with cwd in mind.
-    config = {
-            'host': b'irc.supernets.org', 'port': b'6667', 'ssl': False,
-            'nick': 'ducky', 'pass': '',
-            'ident': '', 'user': 'ducky',
-            'mode': '+B', 'unused': '*',
-            'owner': 'mrsnafu', 'owner_email': '',
-            'channels': ['#snafu'], 'plugin_path': os.path.join(os.getcwd(), 'asirk', 'plugins')
-    }
+    home_path = os.path.join(os.getcwd(), 'asirk')    
+    data_path = os.path.join(home_path, 'data')
 
+    config_path = os.path.join(data_path, 'config.json')
+    plugin_path = os.path.join(data_path, 'plugins')
+
+    config = load_config(config_path)
+
+    # asyncio Protocols requires b'host:port' format.    
+    config['host'] = bytes(config['host'], 'utf-8')
+    config['port'] = bytes(config['port'], 'utf-8')
+    config['plugin_path'] = plugin_path
+    
     asirk = Irk(loop, config)
-
     asirk.start()
 
     loop.run_until_complete(asirk.client_completed)

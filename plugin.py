@@ -41,6 +41,11 @@ class PluginManager:
         self.admin_commands = {}
         self.commands = {}
 
+    def list_plugins(self):
+        for pn in os.listdir(self.plugins_path):
+            if pn[-3:] == ".py" and pn != "__init__.py" and pn[:2] != ".#":
+                yield pn
+
     def load_plugin(self, plugin_name):
         try:
             spec = importlib.util.spec_from_file_location(plugin_name,
@@ -78,7 +83,7 @@ class PluginManager:
 
     def load_plugins(self):
         for plugin_name in os.listdir(self.plugins_path):
-            if plugin_name[-3:] == ".py" and plugin_name != "__init__.py":
+            if plugin_name[-3:] == ".py" and plugin_name != "__init__.py" and plugin_name[:2] != ".#":
                 self.load_plugin(plugin_name[:-3])
 
     def unload_plugins(self):

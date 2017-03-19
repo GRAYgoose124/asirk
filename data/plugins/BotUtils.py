@@ -33,7 +33,6 @@ class BotUtils(Plugin):
         self.admin_commands = {
             'rawecho': self.rawecho
         }
-
         self.db = []
         self.db_path = None
 
@@ -41,13 +40,13 @@ class BotUtils(Plugin):
         pass
 
     def rawecho(self, prefix, destination, message):
-        self.protocol.send(' '.join(message.split(' ')[1:]))  
+        self.protocol.send(' '.join(message.split(' ')[1:]))
 
     def echo(self, prefix, destination, message):
         if destination == self.protocol.config['nick']:
-            destination = self.commander
+            destination = prefix[0]
 
-        self.protocol.send_response(destination, ' '.join(message.split(' ')[1:]))            
+        self.protocol.send_response(destination, ' '.join(message.split(' ')[1:]))
 
     def ping(self, prefix, destination, parameters):
         try:

@@ -16,7 +16,7 @@ import logging
 import asyncio
 import time
 import re
-
+import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +88,7 @@ class IrcProtocol(asyncio.Protocol):
                 prefix = Irc.split_prefix(prefix)
 
                 logger.info("-->| {}".format(message))
+                logger.debug("\n\t\t\t   | {}".format(datetime.datetime.now().time()))
 
                 self.bot_callback(prefix, command, parameters)
 
@@ -107,6 +108,8 @@ class IrcProtocol(asyncio.Protocol):
     # Utility functions
     def send(self, message):
         logger.info("<--| {}".format(message))
+        logger.debug("\n\t\t\t   | {}".format(datetime.datetime.now().time()))
+
         self.transport.write(bytes("{}\r\n".format(message), encoding='utf-8'))
 
     def send_response(self, dest, message):

@@ -53,6 +53,7 @@ class IrcBot(PluginManager):
         self.protocol.set_callback(self.process)
 
         self.load_plugins()
+        logger.info(" P | Loaded plugins: {}".format(list(self.plugins.keys())))
 
     def stop(self):
         self.protocol.send(Irc.quit("Stopping..."))
@@ -81,7 +82,6 @@ class Irk(IrcBot):
         self.command_symbol = '.'
         self.commander = None
 
-
         self.elapsed = 0
 
     def process(self, prefix, command, parameters):
@@ -103,7 +103,8 @@ class Irk(IrcBot):
                 except NotImplementedError:
                     pass
                 except Exception as e:
-                    logger.debug(e)
+                    logger.warn("Error running privmsg hook!")
+                    traceback.print_tb(e.__traceback__)
 
             bot_cmd = message.split(' ')[0]
             if self.command_symbol == bot_cmd[0]:
@@ -122,7 +123,8 @@ class Irk(IrcBot):
                             v(prefix, destination, message)
                             break
                 except Exception as e:
-                    traceback.print_exc(e)
+                    logger.warn("Error running command!")
+                    traceback.print_tb(e.__traceback__)
             elif command == 'NOTICE':
                 pass
         elif command == '401':
@@ -151,10 +153,14 @@ class Irk(IrcBot):
         self.stop()
 
     def _cmd_help(self, prefix, destination, parameters):
-        cmds = {'user': [cmd for cmd in self.commands],
-                'admin': [cmd for cmd in self.admin_commands]}
+        cmds = []
+
+        if prefix[0]  == self.protocol.config['owner']:
+            cmds += [cmd for cmd in self.admin_commands]
+        cmds += [cmd for cmd in self.commands]
 
         self.protocol.send_response(destination, cmds)
+
 
     def _cmd_plugin(self, prefix, destination, parameters):
         plugin_cmd = parameters.split(' ')[1]
@@ -187,12 +193,15 @@ class Irk(IrcBot):
             plugin_name = parameters.split(' ')[2]
 
             if plugin_name == "all":
-                self.unload_plugins()
-                self.load_plugins()
-                self.protocol.send_response(destination, "All plugins reloaded.")
+                self._cmd_plugin(prefix, destination, '<> unload all')
+                self._cmd_plugin(prefix, destination, '<> load all')
             elif plugin_name in self.plugins:
                 # TODO: Fix this...derp...
-                self._plugin_unload(prefix, destination, parameters)
-                self._plugin_load(prefix, destination, parameters)
-    # TODO: Plugin error responses, catch the splits exceptions
+                self._cmd_plugin(prefix, destination, '<> unload {}'.format(plugin_name))
+                self._cmd_plugin(prefix, destination, '<> load {}'.format(plugin_name))
+        elif plugin_cmd == 'list':
+            plugs = [i for i in self.list_plugins()]
+            self.protocol.send_response(destination, "{}".format(plugs))
+
+            # TODO: Plugin error responses, catch the splits exceptions
 
