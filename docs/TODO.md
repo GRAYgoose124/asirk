@@ -1,3 +1,5 @@
+groupify commands
+Response reload unloaded plugin 
 Irk + IrcBot = 1 classq
 
 Plugin 'uniforms'
@@ -35,6 +37,30 @@ plugin debugging help
 is self.commander desynced  or necessary?
 
 extensive command help
-command structure like plugin
+command structure like plugin but functionalized
 
-argparsing: debug, datapath, verbosity
+#2 argparsing: debug, datapath, verbosity
+#1 Fix Event API, command substructure class + help ?
+#3 generate config
+# Generate homes (plugins+config dir scripts)
+
+DONE:
+rmfacts
+factlist
+to
+fact list <n>
+fact add 
+fact rm n
+
+TODO:
+join
+joined
+part
+to
+irc join
+irc list
+irc part
+
+
+alias plugin
+notice_hook

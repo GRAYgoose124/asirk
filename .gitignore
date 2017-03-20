@@ -2,3 +2,4 @@
 __pycache__/*
 data/plugins/__pycache__/*
 cmts
+data/plugins/data/*

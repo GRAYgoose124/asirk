@@ -40,10 +40,13 @@ class IrcProtocol(asyncio.Protocol):
         self.users = {}
         self.channels = []
 
+        self.bot = None
         self.bot_callback = lambda x, y, z: None
         self.last_dest = None
         self.transport = None
-
+        self.send_buffer = ""
+        self.elapsed = 0 
+        
         # TODO: Callbacks for hooks from bot?
         self.irc_events = {
             'PRIVMSG': self._handle_privmsg,
@@ -71,7 +74,7 @@ class IrcProtocol(asyncio.Protocol):
 
     def data_received(self, data):
         data = data.decode('utf-8')
-
+        
         self.message_buffer += data
 
         messages = self.message_buffer.split('\r\n')
@@ -110,6 +113,7 @@ class IrcProtocol(asyncio.Protocol):
         logger.info("<--| {}".format(message))
         logger.debug("\n\t\t\t   | {}".format(datetime.datetime.now().time()))
 
+        self.send_buffer += "{}\r\n".format(message)
         self.transport.write(bytes("{}\r\n".format(message), encoding='utf-8'))
 
     def send_response(self, dest, message):
@@ -118,8 +122,17 @@ class IrcProtocol(asyncio.Protocol):
 
         self.send(Irc.privmsg(dest, message))
 
+    def send_notice(self, dest, message):
+        if dest is None:
+            return
+        
+        self.send(Irc.notice(dest, message))
+
     def set_callback(self, func):
         self.bot_callback = func
+    
+    def set_bot(self, bot):
+        self.bot = bot
 
     # IRC handlers
     def _qno_handle(self, message):
@@ -205,20 +218,31 @@ class IrcProtocol(asyncio.Protocol):
     def _handle_join(self, message):
         prefix, command, parameters = Irc.split_message(message)
         sender, user, ident = Irc.split_prefix(prefix)
+        
+        channel = parameters[1:]
 
         if sender == self.config['nick']:
-            channel = parameters[1:]
             self.channels.append(channel)
             self.users[channel] = []
+        else:
+            self.users[channel].append(sender)
 
     def _handle_part(self, message):
         prefix, command, parameters = Irc.split_message(message)
         sender, user, ident = Irc.split_prefix(prefix)
 
-        if sender == self.config['nick']:
-            channel = parameters.split(" ")[0]
-            self.users.pop(channel)
+        channel = parameters.split(" ")[0]
 
+        if sender == self.config['nick']:
+            self.users.pop(channel)
+            for i, c in enumerate(self.channels):
+                if c == channel:
+                    self.channels.pop(i)
+        else:
+            for i, x in enumerate(self.users[channel]):
+                if sender == x:
+                    self.users[channel].pop(i)
+ 
     def _handle_mode(self, message):
         prefix, command, parameters = Irc.split_message(message)
 

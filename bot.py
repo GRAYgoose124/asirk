@@ -28,7 +28,7 @@ from plugin import PluginManager
 logger = logging.getLogger(__name__)
 
 
-class IrcBot(PluginManager):
+class Irk(PluginManager):
     def __init__(self, loop, config):
         super().__init__(None, config['plugin_path'])
         self.client_completed = asyncio.Future()
@@ -36,10 +36,19 @@ class IrcBot(PluginManager):
         self.loop = loop
         self.config = config
 
+        self.elapsed = 0
+
         self.client = None
         self.transport, self.protocol = None, None
 
+        self.command_symbol = '.'
         self.commander = None
+    
+        self.admin_commands.update({'quit': self._cmd_quit,
+                                    'restart': self._cmd_restart,
+                                    'plugin': self._cmd_plugin
+                                    })
+
 
     def start(self):
         self.client = self.loop.create_connection(functools.partial(IrcProtocol,
@@ -50,7 +59,13 @@ class IrcBot(PluginManager):
                                                   ssl=self.config['ssl'])
 
         self.transport, self.protocol = self.loop.run_until_complete(self.client)
+
+        self.protocol.starttime = time.time()
+        
         self.protocol.set_callback(self.process)
+        # TODO: This shouldn't be necessary but for compatibility.... so API 
+        # to self.bot.etc and self.protocol.etc
+        self.protocol.set_bot(self)
 
         self.load_plugins()
         logger.info(" P | Loaded plugins: {}".format(list(self.plugins.keys())))
@@ -62,28 +77,7 @@ class IrcBot(PluginManager):
         self.client = None
         self.transport, self.protocol = None, None
 
-    # IrcProtocol message callback
-    def process(self, prefix, command, parameters):
-        raise NotImplementedError
-
-
-class Irk(IrcBot):
-    def __init__(self, loop, config):
-        super().__init__(loop, config)
-
-        self.admin_commands.update({'quit': self._cmd_quit,
-                                    'restart': self._cmd_restart,
-                                    'plugin': self._cmd_plugin,
-                                    })
-
-        self.commands.update({'help': self._cmd_help
-                              })
-
-        self.command_symbol = '.'
-        self.commander = None
-
-        self.elapsed = 0
-
+    # Bot
     def process(self, prefix, command, parameters):
         user, ident, host = prefix
 
@@ -103,7 +97,7 @@ class Irk(IrcBot):
                 except NotImplementedError:
                     pass
                 except Exception as e:
-                    logger.warn("Error running privmsg hook!")
+                    logger.warn("ERR| PRIVMSG hook!")
                     traceback.print_tb(e.__traceback__)
 
             bot_cmd = message.split(' ')[0]
@@ -111,6 +105,7 @@ class Irk(IrcBot):
                 bot_cmd = bot_cmd[1:]
 
                 try:
+                    # TODO: API API API
                     # TODO: Better admin authentication, multiuser
                     # TODO: multinetwork
                     if self.commander == self.config['owner']:
@@ -123,10 +118,12 @@ class Irk(IrcBot):
                             v(prefix, destination, message)
                             break
                 except Exception as e:
-                    logger.warn("Error running command!")
+                    logger.warn("ERR| Plugin command!")
                     traceback.print_tb(e.__traceback__)
+
             elif command == 'NOTICE':
                 pass
+
         elif command == '401':
             self.protocol.send_response(self.protocol.last_dest, "That nick is invalid.")
 
@@ -140,6 +137,7 @@ class Irk(IrcBot):
 
         logger.debug("TIM| bot processing time: avg. {:.3f} ms".format(self.elapsed))
 
+    # quit, restart + help in plugins
     def _cmd_quit(self, prefix, destination, parameters):
         self.stop()
 
@@ -151,18 +149,9 @@ class Irk(IrcBot):
 
         atexit.register(__restart)
         self.stop()
-
-    def _cmd_help(self, prefix, destination, parameters):
-        cmds = []
-
-        if prefix[0]  == self.protocol.config['owner']:
-            cmds += [cmd for cmd in self.admin_commands]
-        cmds += [cmd for cmd in self.commands]
-
-        self.protocol.send_response(destination, cmds)
-
-
+        
     def _cmd_plugin(self, prefix, destination, parameters):
+        """plugin <loaded|list>|<unload|load|reload> [name|all]"""
         plugin_cmd = parameters.split(' ')[1]
 
         if plugin_cmd == 'loaded':
@@ -187,7 +176,7 @@ class Irk(IrcBot):
             elif self.load_plugin(plugin_name) is not None:
                 self.protocol.send_response(destination, "Plugin {} loaded.".format(plugin_name))
             else:
-                self.protocol.send_response(destination, "Invalid plugin.")
+                self.protocol.send_response(destination, "Invalid plugin to load.")
 
         elif plugin_cmd == 'reload':
             plugin_name = parameters.split(' ')[2]
@@ -199,6 +188,9 @@ class Irk(IrcBot):
                 # TODO: Fix this...derp...
                 self._cmd_plugin(prefix, destination, '<> unload {}'.format(plugin_name))
                 self._cmd_plugin(prefix, destination, '<> load {}'.format(plugin_name))
+            else:
+                self.protocol.send_response(destination, "Invalid plugin to reload.")
+
         elif plugin_cmd == 'list':
             plugs = [i for i in self.list_plugins()]
             self.protocol.send_response(destination, "{}".format(plugs))

@@ -14,6 +14,8 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
 import logging
 import re
+import os
+import json
 
 from plugin import Plugin
 
@@ -25,12 +27,24 @@ class Factoid(Plugin):
         def __init__(self, protocol):
             super().__init__(protocol)
 
-            self.admin_commands = {
-                'rmfact': self.delete_factoid
+            self.commands = {
+                'fact': self.factoid,
             }
+
+            self.admin_commands = {
+                }
             
             # TODO: mysql DB
-            self.db = []
+            self.db_file = os.path.join(self.protocol.config['plugin_data_path'], 'factDB')
+            try:
+                with open(self.db_file, 'r') as f:
+                    lines = ''.join([line for line in f.readlines()])
+                    if len(lines):
+                        self.db = json.loads(lines)
+                    else:
+                        self.db = []
+            except IOError:
+                self.db = []
 
         def privmsg_hook(self, prefix, command, parameters):
             # TODO: Standardize with commands + event API + documented values for PRIVSMG / CMD
@@ -38,11 +52,25 @@ class Factoid(Plugin):
             destination, message = parameters.split(' ', 1)
             message = message[1:]
 
+            # Stop on command this is a hack.
+            if message[0] == self.protocol.bot.command_symbol or message[0] == ':':
+                return
+
             # Factoid Response
             # TODO: test for 90-95% similarity
             for input, action, response in self.db:
+                # TODO make command API
+                if destination == self.protocol.config['nick']:
+                    destination = prefix[0]
+                    
                 if input in message:
                     self.protocol.send_response(destination, response)
+
+
+        # TODO: Need to document event* API
+        def add_factoid(self, prefix, destination, parameters):
+            """<factoid>: message <action> response"""
+            _, message = parameters.split(' ', 1)
 
             # New Factoid Creation
             # TODO: store by index, one input/many responses
@@ -51,9 +79,34 @@ class Factoid(Plugin):
                 _, input, action, response, _ = data
                 self.db.append((input, action, response))
                 self.protocol.send_response(destination, "\'{} <{}> {}\' is now recorded.".format(input, action, response))
+            
+            with open(self.db_file, 'w+') as f:
+               f.writelines(json.dumps(self.db))
 
-        def list_factoids(self, prefix, command, parameters):
-            pass
+        def list_factoids(self, prefix, destination, parameters):
+            self.protocol.send_response(destination, [i for i in enumerate(self.db)])
 
-        def delete_factoid(self, prefix, command, parameters):
-            pass
+        def delete_factoid(self, prefix, destination, parameters):
+            _, message = parameters.split(' ', 1)
+            fact = self.db.pop(int(message))
+            self.protocol.send_response(destination, "Factoid \'{}\' deleted.".format(fact))
+
+        def factoid(self, prefix, destination, parameters):
+            """fact <list>|<new|del> [fact|index]"""
+            try:
+                _, cmd, params = parameters.split(' ', 2)
+            # TODO: FIX
+            except Exception:
+                _, cmd = parameters.split(' ', 1)
+                params = "<>"
+                
+            parameters = "<> {}".format(params)
+    
+            print(parameters)            
+            if cmd == 'new':
+                self.add_factoid(prefix, destination, parameters)
+            # Generalize ownership API TODO
+            elif cmd == 'del' and self.protocol.config['owner'] == prefix[0]:
+                self.delete_factoid(prefix, destination, parameters)
+            elif cmd == 'list':
+                self.list_factoids(prefix, destination, parameters)

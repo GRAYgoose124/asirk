@@ -15,7 +15,8 @@
 import logging
 import os
 import importlib.util
-
+import traceback
+import time 
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class Plugin:
         self.commands = {}
 
     def privmsg_hook(self, prefix, command, parameters):
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class PluginManager:
@@ -54,13 +55,18 @@ class PluginManager:
             spec.loader.exec_module(module)
         except Exception as e:
             logger.warning("PGN| {}".format(e))
+            traceback.print_tb(e.__traceback__)
             return
 
         try:
             plugin = getattr(module, plugin_name)(self.protocol)
-        except AttributeError:
-            logger.warning("Invalid Plugin: {}".format(plugin_name))
+        except AttributeError as e:
+            logger.warning("PGN| Invalid Plugin: {}".format(plugin_name))
+            traceback.print_tb(e.__traceback__)
             return
+
+        logger.debug("PGN| {}: {}".format(plugin_name, plugin.commands))
+
         self.commands.update(plugin.commands)
         self.admin_commands.update(plugin.admin_commands)
         self.plugins[plugin_name] = plugin

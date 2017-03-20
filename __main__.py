@@ -46,7 +46,8 @@ def main():
     config['host'] = bytes(config['host'], 'utf-8')
     config['port'] = bytes(config['port'], 'utf-8')
     config['plugin_path'] = plugin_path
-    
+    config['plugin_data_path'] = os.path.join(plugin_path, 'data')
+
     asirk = Irk(loop, config)
     asirk.start()
 
