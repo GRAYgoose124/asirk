@@ -21,8 +21,8 @@ import sys
 import atexit
 import traceback
 
-from irc import Irc, IrcProtocol
-from plugin import PluginManager
+from .irc import Irc, IrcProtocol
+from .plugin import PluginManager
 
 
 logger = logging.getLogger(__name__)
@@ -44,12 +44,11 @@ class Irk(PluginManager):
         self.command_symbol = '.'
         self.commander = None
     
-        self.admin_commands.update({'quit': self._cmd_quit,
-                                    'plugin': self._cmd_plugin
+        self.admin_commands.update({'plugin': self._cmd_plugin
                                     })
 
-
     def start(self):
+        self.elapsed = 0
         self.client = self.loop.create_connection(functools.partial(IrcProtocol,
                                                                     future=self.client_completed,
                                                                     config=self.config),
@@ -100,6 +99,9 @@ class Irk(PluginManager):
                     traceback.print_tb(e.__traceback__)
 
             bot_cmd = message.split(' ')[0]
+            if len(bot_cmd) == 0:
+                return
+                
             if self.command_symbol == bot_cmd[0]:
                 bot_cmd = bot_cmd[1:]
 
@@ -117,7 +119,7 @@ class Irk(PluginManager):
                             v(prefix, destination, message)
                             break
                 except Exception as e:
-                    logger.warn("ERR| Plugin command!\n\nError: {}".format(e))
+                    logger.warn("ERR| Plugin command!\nError: {}".format(e))
                     traceback.print_tb(e.__traceback__)
 
         elif command == 'NOTICE':
@@ -135,10 +137,6 @@ class Irk(PluginManager):
         self.elapsed = self.elapsed / average_div
 
         logger.debug("TIM| bot processing time: avg. {:.3f} ms".format(self.elapsed))
-
-    # quit, restart + help in plugins
-    def _cmd_quit(self, prefix, destination, parameters):
-        self.stop()
 
     # TODO: document parameters api then wrap in *event
     def _cmd_plugin(self, prefix, destination, parameters):

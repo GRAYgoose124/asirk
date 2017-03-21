@@ -15,8 +15,8 @@
 import time
 import logging
 
-from plugin import Plugin
-from irc import Irc
+from lib.plugin import Plugin
+from lib.irc import Irc
 
 
 logger = logging.getLogger(__name__)

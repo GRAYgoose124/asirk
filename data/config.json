@@ -1,1 +1,1 @@
-{"host": "irc.supernets.org", "ident": "", "mode": "+B", "ssl": false, "unused": "*", "owner": "mrsnafu", "port": "6667", "user": "ducky", "pass": "", "owner_email": "", "channels": ["#snafu"], "nick": "ducky"}
+{"host": "irc.foonetic.net", "ident": "", "mode": "+B", "ssl": false, "unused": "*", "owner": "mrsnafu", "port": "6667", "user": "ducky", "pass": "", "owner_email": "", "channels": ["#snafu"], "nick": "ducky"}

@@ -19,8 +19,8 @@ import os
 import atexit
 import sys
 
-from plugin import Plugin
-from irc import Irc
+from lib.plugin import Plugin
+from lib.irc import Irc
 
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,8 @@ class BotUtils(Plugin):
             'join': self.join,
             'part': self.part,
             'conf': self.config,
-            'restart': self.restart
+            'restart': self.restart,
+            'quit': self.quit
         }
 
     def rawecho(self, prefix, destination, message):
@@ -94,10 +95,13 @@ class BotUtils(Plugin):
         self.protocol.send_response(destination, "Parted: {}".format(channel))
 
     def joined(self, prefix, destination, parameters):
-        self.protocol.send_response(destination, "Channels: {}".format(self.protocol.users))
+        self.protocol.send_response(destination, "Channels: {}".format(self.protocol.users.keys()))
         
     def config(self, prefix, destination, parameters):
         self.protocol.send_notice(prefix[0], "config: {}".format(self.protocol.config))
+
+    def quit(self, prefix, destination, parameters):
+        self.protocol.bot.stop()
 
     def restart(self, prefix, destination, parameters):
         def __restart():

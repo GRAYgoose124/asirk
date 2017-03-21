@@ -90,6 +90,7 @@ class IrcProtocol(asyncio.Protocol):
                 prefix, command, parameters = Irc.split_message(message)
                 prefix = Irc.split_prefix(prefix)
 
+
                 logger.info("-->| {}".format(message))
                 logger.debug("\n\t\t\t   | {}".format(datetime.datetime.now().time()))
 
@@ -121,8 +122,8 @@ class IrcProtocol(asyncio.Protocol):
             return
 
         if len(message) > Irc.msg_size:
-            n_msgs = len(message) / Irc.msg_size
-            for i in range(n_msgs):
+            n_msgs = int(len(message) / Irc.msg_size)
+            for i in range(n_msgs+1):
                 self.send(Irc.privmsg(dest, message[Irc.msg_size*i:Irc.msg_size*(i+1)]))
         else:
             self.send(Irc.privmsg(dest, message))
@@ -153,6 +154,7 @@ class IrcProtocol(asyncio.Protocol):
 
         channel, msg = parameters.split(" ", 1)
 
+
         if channel != self.config['nick']:
             self.last_dest = channel
         else:
@@ -163,7 +165,14 @@ class IrcProtocol(asyncio.Protocol):
             return
 
         tokens = parameters.split(' ')
-        # Handles the case of ": <text>". Someone started their message with a space.
+        
+        try:
+            if tokens[2] == '':
+                return
+        except IndexError:
+            return
+            
+        # Handles the case of ": <text>". Someone started their message with a space.            
         if tokens[1] == ':':
             privmsg_command = tokens[2]
             message = "{} {}".format(privmsg_command, " ".join(tokens[2:]))

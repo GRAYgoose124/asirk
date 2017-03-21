@@ -28,8 +28,8 @@ if os.name != 'nt':
     except:
         logger.warn("Not using uvloop!")
 
-from bot import Irk
-from config import load_config, save_config
+from lib.bot import Irk
+from lib.config import load_config, save_config
 
 
 def args():
