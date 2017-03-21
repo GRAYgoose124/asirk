@@ -120,7 +120,12 @@ class IrcProtocol(asyncio.Protocol):
         if dest is None:
             return
 
-        self.send(Irc.privmsg(dest, message))
+        if len(message) > Irc.msg_size:
+            n_msgs = len(message) / Irc.msg_size
+            for i in range(n_msgs):
+                self.send(Irc.privmsg(dest, message[Irc.msg_size*i:Irc.msg_size*(i+1)]))
+        else:
+            self.send(Irc.privmsg(dest, message))
 
     def send_notice(self, dest, message):
         if dest is None:
@@ -273,6 +278,8 @@ class Irc:
     It also provides basic IRC utility functions.
     """
 
+    msg_size = 475
+    
     # Message Utility Functions
     @staticmethod
     def split_privmsg(message):

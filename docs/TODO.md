@@ -1,4 +1,6 @@
-groupify commands
+events* API
+authentication structure (login cmd)
+group structure commands
 Response reload unloaded plugin 
 Irk + IrcBot = 1 classq
 

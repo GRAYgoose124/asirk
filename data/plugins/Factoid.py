@@ -69,7 +69,6 @@ class Factoid(Plugin):
 
         # TODO: Need to document event* API
         def add_factoid(self, prefix, destination, parameters):
-            """<factoid>: message <action> response"""
             _, message = parameters.split(' ', 1)
 
             # New Factoid Creation
@@ -92,7 +91,7 @@ class Factoid(Plugin):
             self.protocol.send_response(destination, "Factoid \'{}\' deleted.".format(fact))
 
         def factoid(self, prefix, destination, parameters):
-            """fact <list>|<new|del> [fact|index]"""
+            """<list>|<new|del> [fact|index]"""
             try:
                 _, cmd, params = parameters.split(' ', 2)
             # TODO: FIX

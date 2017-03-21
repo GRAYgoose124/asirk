@@ -31,10 +31,9 @@ class StrCMD(Plugin):
         }
 
     def struct(self, *event):
-        """ A simple structured command. """
+        """-> A simple structured command."""
         print("test")
     
-        
     def _sub1():
         pass
     

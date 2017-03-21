@@ -45,7 +45,6 @@ class Irk(PluginManager):
         self.commander = None
     
         self.admin_commands.update({'quit': self._cmd_quit,
-                                    'restart': self._cmd_restart,
                                     'plugin': self._cmd_plugin
                                     })
 
@@ -97,7 +96,7 @@ class Irk(PluginManager):
                 except NotImplementedError:
                     pass
                 except Exception as e:
-                    logger.warn("ERR| PRIVMSG hook!")
+                    logger.warn("ERR| PRIVMSG hook!\n\nError: {}".format(e))
                     traceback.print_tb(e.__traceback__)
 
             bot_cmd = message.split(' ')[0]
@@ -118,11 +117,11 @@ class Irk(PluginManager):
                             v(prefix, destination, message)
                             break
                 except Exception as e:
-                    logger.warn("ERR| Plugin command!")
+                    logger.warn("ERR| Plugin command!\n\nError: {}".format(e))
                     traceback.print_tb(e.__traceback__)
 
-            elif command == 'NOTICE':
-                pass
+        elif command == 'NOTICE':
+            pass
 
         elif command == '401':
             self.protocol.send_response(self.protocol.last_dest, "That nick is invalid.")
@@ -142,16 +141,8 @@ class Irk(PluginManager):
         self.stop()
 
     # TODO: document parameters api then wrap in *event
-    def _cmd_restart(self, prefix, destination, parameters):
-        def __restart():
-            python = sys.executable
-            os.execl(python, python, *sys.argv)
-
-        atexit.register(__restart)
-        self.stop()
-        
     def _cmd_plugin(self, prefix, destination, parameters):
-        """plugin <loaded|list>|<unload|load|reload> [name|all]"""
+        """<loaded|list>|<unload|load|reload> [name|all] -> Modify bot's plugins."""
         plugin_cmd = parameters.split(' ')[1]
 
         if plugin_cmd == 'loaded':
@@ -193,7 +184,7 @@ class Irk(PluginManager):
 
         elif plugin_cmd == 'list':
             plugs = [i for i in self.list_plugins()]
-            self.protocol.send_response(destination, "{}".format(plugs))
+            self.protocol.send_response(destination, "{}: {}".format(plugs, len(plugs)))
 
             # TODO: Plugin error responses, catch the splits exceptions
 

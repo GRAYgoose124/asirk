@@ -13,6 +13,7 @@
 #   You should have received a copy of the GNU Affero General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
 import os
+import sys
 import asyncio
 import logging
 import argparse 
@@ -31,6 +32,10 @@ from bot import Irk
 from config import load_config, save_config
 
 
+def args():
+    parser = argparse.ArgumentParser(description="asyncio irc bot.")
+    results = parser.parse_args(sys.arg)
+    
 def main():
     loop = asyncio.get_event_loop()
 

@@ -15,6 +15,9 @@
 import logging
 import time
 import inspect
+import os
+import atexit
+import sys
 
 from plugin import Plugin
 from irc import Irc
@@ -40,21 +43,22 @@ class BotUtils(Plugin):
             'rawecho': self.rawecho,
             'join': self.join,
             'part': self.part,
-            'conf': self.config
+            'conf': self.config,
+            'restart': self.restart
         }
 
     def rawecho(self, prefix, destination, message):
         self.protocol.send(' '.join(message.split(' ')[1:]))
 
     def echo(self, prefix, destination, message):
-        """echo <message> -> bot: <message>"""
+        """<message> -> bot: <message>"""
         if destination == self.protocol.config['nick']:
             destination = prefix[0]
 
         self.protocol.send_response(destination, ' '.join(message.split(' ')[1:]))
 
     def ping(self, prefix, destination, parameters):
-        """ping <user> -> bot pings to <user>."""
+        """<user> -> bot pings to <user>."""
         try:
             user = parameters.split(' ')[1]
         except IndexError:
@@ -70,19 +74,21 @@ class BotUtils(Plugin):
         logger.info("PNG| {}".format(user))
 
     def uptime(self, prefix, destination, parameters):
-        """uptime -> returns the average process time and uptime of the bot."""
+        """-> returns the average process time and uptime of the bot."""
         self.protocol.send_response(destination, "Average process time: {:.4f}ms".format(self.protocol.elapsed))
-        self.protocol.send_response(destination, "Uptime: {:.2f} seconds.".format(time.time() - self.protocol.starttime))
+        
+        up = (time.time() - self.protocol.starttime) / 60
+        self.protocol.send_response(destination, "Uptime: {:.2f} minutes.".format(up))
 
     def join(self, prefix, destination, parameters):
-        """join <channel> -> bot joins <channel>."""
+        """<channel> -> bot joins <channel>."""
         channel = parameters.split(' ')[1]
 
         self.protocol.send(Irc.join(channel))
         self.protocol.send_response(destination, "Joining: {}".format(channel))
 
     def part(self, prefix, destination, parameters):
-        """part <channel> -> bot parts <channel>."""
+        """<channel> -> bot parts <channel>."""
         channel = parameters.split(' ')[1]
         self.protocol.send(Irc.part(channel))
         self.protocol.send_response(destination, "Parted: {}".format(channel))
@@ -93,44 +99,75 @@ class BotUtils(Plugin):
     def config(self, prefix, destination, parameters):
         self.protocol.send_notice(prefix[0], "config: {}".format(self.protocol.config))
 
-    def bound(self, prefix, destination, parameters):
-        """bound <command> -> What plugin that command comes from"""
-        bound_cmd = parameters.split(' ')[1]
-        message = "Invalid command."
-   
-        try:
-            message = self.protocol.bot.commands[bound_cmd].__self__.__class__
-        except:
-            pass
-   
-        try:
-            message = self.protocol.bot.admin_commands[bound_cmd].__self__.__class__
-        except:
-            pass
+    def restart(self, prefix, destination, parameters):
+        def __restart():
+            python = sys.executable
+            os.execl(python, python, *sys.argv)
+            
+        atexit.register(__restart)
+        self.protocol.bot.stop()
 
+    def bound(self, prefix, destination, parameters):
+        """<command> -> What plugin that command comes from"""
+        _, bound_cmd, *_ = parameters.split(' ', 2)
+            
+        message = "Invalid command."
+    
+        acl = self.protocol.bot.admin_commands.copy()
+        command_list = dict(self.protocol.bot.commands, **acl)
+    
+        if bound_cmd == 'all':
+            d = {}
+            for n, c in command_list.items():
+                cn = str(c.__self__.__class__).split("\'")[1]
+                cn = cn.split(".")[1]
+         
+                if cn not in d:      
+                    d[cn] = [n]
+                else:
+                    d[cn].append(n)            
+            message = str(d)               
+        else:
+            try:
+                message = command_list[bound_cmd].__self__.__class__
+            except KeyError:
+                pass
+
+            message = "Command \'{}\' from \'{}\'".format(bound_cmd, str(message).split("\'")[1].split(".")[1])
+                            
         self.protocol.send_response(destination, message)
 
     def help(self, prefix, destination, parameters):
-        """help <command> -> extra information on using <command>."""
+        """<command> -> extra information on using <command>."""
         cmds = []
 
         try:
             help_cmd = parameters.split(' ')[1]
+            
+            if help_cmd == 'all':
+                for cmd in self.protocol.bot.admin_commands:
+                    self._help(cmd, destination) 
+                for cmd in self.protocol.bot.commands:
+                    self._help(cmd, destination)
+            else:
+                self._help(help_cmd, destination)
+        except IndexError:
+            cmds += ["{}*".format(cmd) for cmd in self.protocol.bot.admin_commands]
+            cmds += [cmd for cmd in self.protocol.bot.commands]
+            
+            self.protocol.send_response(destination, ", ".join(cmds))
+
+    def _help(self, help_cmd, destination):
             try:
                 for line in self.protocol.bot.commands[help_cmd].__doc__.split('\n'):
-                    self.protocol.send_response(destination, line)
-                return
+                    self.protocol.send_response(destination, "{} {}".format(help_cmd, line)) 
+                    return 
             except:
                 pass
             try:
                 for line in self.protocol.bot.admin_commands[help_cmd].__doc__.split('\n'):
-                    self.protocol.send_response(destination, line)
+                    self.protocol.send_response(destination, "{} {}".format(help_cmd, line))
                 return
             except:
                 pass
-        except:
-            if prefix[0] == self.protocol.config['owner']:
-                cmds += [cmd for cmd in self.protocol.bot.admin_commands]
-            cmds += [cmd for cmd in self.protocol.bot.commands]
-            
-            self.protocol.send_response(destination, cmds)
+
