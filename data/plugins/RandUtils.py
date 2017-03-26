@@ -22,23 +22,9 @@ from lib.irc import Irc
 logger = logging.getLogger(__name__)
 
 
-class StrCMD(Plugin):
+class RandUtils(Plugin):
     def __init__(self, protocol):
         super().__init__(protocol)
 
-        self.commands = {
-            'struct': self.struct
-        }
-
-    def struct(self, *event):
-        """-> A simple structured command."""
-        print("test")
-    
-    def _sub1():
-        pass
-    
-    def _sub2():
-        pass
-        
-    def _sub2_sub1():
-        pass
+        self.commands = {}
+        self.admin_commands = {}

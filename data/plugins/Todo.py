@@ -24,11 +24,18 @@ class Todo(Plugin):
         self.protocol.send_response(destination, "Note recorded.")
         
     def list(self, prefix, destination, parameters):
+        # TODO plugin API helpers
+        try:
+            index = int(parameters.split(' ')[1])
+        except (IndexError, ValueError):
+            index = None
+                        
         self.protocol.send_response(destination, "Task List:")
         
         with open(os.path.join(self.protocol.config['plugin_data_path'], 'todo.txt'), 'r') as f:
             for i, line in enumerate(f.readlines()):
-                self.protocol.send_response(destination, "  {}: {}".format(i, line).strip('\n'))
+                if index is None or index == i:
+                    self.protocol.send_response(destination, "  {}: {}".format(i, line).strip('\n'))
 
         self.protocol.send_response(destination, "---------")
 

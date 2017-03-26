@@ -28,7 +28,7 @@ class Plugin:
         self.admin_commands = {}
         self.commands = {}
 
-    def privmsg_hook(self, prefix, command, parameters):
+    def msg_hook(self, prefix, command, parameters):
         raise NotImplementedError
 
 
@@ -67,11 +67,16 @@ class PluginManager:
 
         logger.debug("PGN| {}: {}".format(plugin_name, plugin.commands))
 
-        self.commands.update(plugin.commands)
-        self.admin_commands.update(plugin.admin_commands)
-        self.plugins[plugin_name] = plugin
-
-        return True
+        try:
+            self.commands.update(plugin.commands)
+            self.admin_commands.update(plugin.admin_commands)
+            self.plugins[plugin_name] = plugin
+            
+            return True
+        except (ValueError, TypeError) as e:
+            logger.warning("PGN| ERROR")
+            traceback.print_tb(e.__traceback__) 
+            
 
     def unload_plugin(self, plugin_name):
         try:

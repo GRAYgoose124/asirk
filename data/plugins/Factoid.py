@@ -46,7 +46,7 @@ class Factoid(Plugin):
             except IOError:
                 self.db = []
 
-        def privmsg_hook(self, prefix, command, parameters):
+        def msg_hook(self, prefix, command, parameters):
             # TODO: Standardize with commands + event API + documented values for PRIVSMG / CMD
             sender = prefix[0]
             destination, message = parameters.split(' ', 1)

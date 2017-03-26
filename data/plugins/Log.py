@@ -11,7 +11,7 @@ class Log(Plugin):
 
           self.send_buffer_index = 0
 
-      def privmsg_hook(self, prefix, command, parameters):
+      def msg_hook(self, prefix, command, parameters):
             # TODO API file hook
             with open(os.path.join(self.protocol.config['plugin_data_path'], 'log.txt'), 'a+') as f:
                   f.write("{1}/{0}: {2}".format(prefix[0], *parameters.split(' ', 1)))

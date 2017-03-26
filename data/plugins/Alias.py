@@ -15,7 +15,7 @@ class Alias(Plugin):
                           }
         
     # TODO: Functionalize command usage in bot.py 
-    def privmsg_hook(self, prefix, command, parameters):
+    def msg_hook(self, prefix, command, parameters):
         channel, message = parameters.split(' ', 1)
         message = message[1:]
                 

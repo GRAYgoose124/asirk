@@ -36,19 +36,16 @@ class Irk(PluginManager):
         self.loop = loop
         self.config = config
 
-        self.elapsed = 0
-
         self.client = None
         self.transport, self.protocol = None, None
 
         self.command_symbol = '.'
         self.commander = None
     
-        self.admin_commands.update({'plugin': self._cmd_plugin
-                                    })
+        self.admin_commands.update({'plugin': self._cmd_plugin})
 
     def start(self):
-        self.elapsed = 0
+        logger.info(" O | Starting...")
         self.client = self.loop.create_connection(functools.partial(IrcProtocol,
                                                                     future=self.client_completed,
                                                                     config=self.config),
@@ -69,6 +66,7 @@ class Irk(PluginManager):
         logger.info(" P | Loaded plugins: {}".format(list(self.plugins.keys())))
 
     def stop(self):
+        logger.info(" X | Stopping...")
         self.protocol.send(Irc.quit("Stopping..."))
         self.transport.close()
 
@@ -79,7 +77,16 @@ class Irk(PluginManager):
     def process(self, prefix, command, parameters):
         user, ident, host = prefix
 
-        start = time.clock()
+        for name, plugin in self.plugins.items():
+            try:
+                # TODO: plugin.msg_hook(*event) 
+                #:TODO catch plugin exceptions so that they won't break the bot.
+                plugin.msg_hook(prefix, command, parameters)
+            except (NotImplementedError, ValueError, IndexError) as e:
+                pass
+            except Exception as e:
+                logger.warn("ERR| PRIVMSG hook!\nError: {}".format(e))
+                traceback.print_tb(e.__traceback__)
 
         if command == 'PRIVMSG':
             self.commander = user
@@ -87,16 +94,6 @@ class Irk(PluginManager):
 
             if destination == self.config['nick']:
                 destination = user
-
-            for name, plugin in self.plugins.items():
-                try:
-                    #:TODO catch plugin exceptions so that they won't break the bot.
-                    plugin.privmsg_hook(prefix, command, parameters)
-                except NotImplementedError:
-                    pass
-                except Exception as e:
-                    logger.warn("ERR| PRIVMSG hook!\n\nError: {}".format(e))
-                    traceback.print_tb(e.__traceback__)
 
             bot_cmd = message.split(' ')[0]
             if len(bot_cmd) == 0:
@@ -118,25 +115,23 @@ class Irk(PluginManager):
                         if bot_cmd == k:
                             v(prefix, destination, message)
                             break
+                except ValueError as e:
+                    pass
                 except Exception as e:
-                    logger.warn("ERR| Plugin command!\nError: {}".format(e))
+                    logger.warn("ERR| Plugin command!\nError: {}:{}".format(e.__class__.__name__, e))
                     traceback.print_tb(e.__traceback__)
 
         elif command == 'NOTICE':
-            pass
+            logger.info(" ? | Caught a notice? {}".format(parameters))
 
         elif command == '401':
             self.protocol.send_response(self.protocol.last_dest, "That nick is invalid.")
-
-        if self.elapsed == 0:
-            average_div = 1.0
+        
+        elif command == '311':
+            pass
+            
         else:
-            average_div = 2.0
-
-        self.elapsed += time.clock() - start
-        self.elapsed = self.elapsed / average_div
-
-        logger.debug("TIM| bot processing time: avg. {:.3f} ms".format(self.elapsed))
+            pass
 
     # TODO: document parameters api then wrap in *event
     def _cmd_plugin(self, prefix, destination, parameters):

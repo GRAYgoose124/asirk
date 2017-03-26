@@ -369,6 +369,10 @@ class Irc:
     def quit(quit_message="Quitting"):
         return "QUIT :{}".format(quit_message)
 
+    @staticmethod
+    def whois(nick):
+        return "WHOIS {}".format(nick)
+        
     # NICKSERV messages
     @staticmethod
     def register(owner_email, password):

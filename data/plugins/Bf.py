@@ -32,11 +32,17 @@ class Bf(Plugin):
         """<code> -> Brainfuck interpreter results."""
         # TODO: API split parameter function
         try:
+            code_string = None
             _, code_string, *input_string = parameters.split(" ", 2)
             input_string = input_string[0]
-        except IndexError:
-            self.send_message("Get it right if you're gonna try.", destination)
+            code_string = code_string.strip(' ')
+        except (IndexError, ValueError):
+            pass
 
+        if code_string is None or code_string == '':
+            self.protocol.send_response(destination, "Invalid BF command.")
+            return
+                
         max_loops = 1024
         tape_size = 24
         tape = [0]*tape_size
