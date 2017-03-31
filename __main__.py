@@ -18,7 +18,10 @@ import asyncio
 import logging
 import argparse 
 
-logging.basicConfig(level=logging.INFO, format='[%(levelname)7s] %(name)7s:%(lineno)4s |%(message)s')
+# TODO: Fix debug
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s.%(msecs)03d [%(levelname)4s] %(name)10s:%(lineno)4s |%(message)s',
+                    datefmt="%H%M:%S")
 logger = logging.getLogger(__name__)
 
 if os.name != 'nt':
@@ -26,20 +29,27 @@ if os.name != 'nt':
         import uvloop
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     except:
-        logger.warn("Not using uvloop!")
+        logger.warning(" Not using uvloop!")
+else:
+    logger.warning(" Not using uvloop!")
 
-from lib.bot import Irk
-from lib.config import load_config, save_config
+from core.bot import Irk
+from core.config import load_config, save_config
 
 
 def args():
     parser = argparse.ArgumentParser(description="asyncio irc bot.")
-    results = parser.parse_args(sys.arg)
+    results = parser.parse_args(*sys.argv)
     
 def main():
     loop = asyncio.get_event_loop()
 
-    home_path = os.path.join(os.getcwd(), 'asirk')    
+    # This is really just because I'm using pycharm on windows...
+    if os.name != 'nt':
+        home_path = os.path.join(os.getcwd(), 'asirk')
+    else:
+        home_path = os.getcwd()
+
     data_path = os.path.join(home_path, 'data')
 
     config_path = os.path.join(data_path, 'config.json')

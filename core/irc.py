@@ -110,6 +110,7 @@ class IrcProtocol(asyncio.Protocol):
         self.f.set_result(True)
 
     # Utility functions
+    # TODO: add more irc_helpers
     def send(self, message):
         logger.info("<--| {}".format(message))
         logger.debug("\n\t\t\t   | {}".format(datetime.datetime.now().time()))
@@ -121,6 +122,7 @@ class IrcProtocol(asyncio.Protocol):
         if dest is None:
             return
 
+        # TODO: generalize message splitting.
         if len(message) > Irc.msg_size:
             n_msgs = int(len(message) / Irc.msg_size)
             for i in range(n_msgs+1):

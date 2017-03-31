@@ -19,8 +19,8 @@ import os
 import atexit
 import sys
 
-from lib.plugin import Plugin
-from lib.irc import Irc
+from core.plugin import Plugin
+from core.irc import Irc
 
 
 logger = logging.getLogger(__name__)

@@ -1,34 +1,40 @@
-Look at bot.py@106,123,127 for event* API 
+# Plugin format
+Plugin.py:
 
-# dedicated API file:
-# API functions 
-TODO: add irc_helpers
-Addressed self.protocol.* in plugin.
-    irc.IrcProtocol.send(message)
-    irc.IrcProtocol.send_response(destination, message)
-
-# Plugin format:
-Plugin.py 
-    
         class <Plugin>:
             def __init__(self, protocol):
                 super().__init__(protocol)
                 
                 self.admin_commands = {}
                 self.commands = {}
+    
                 
-# Plugin command definition
-self.commands = {'<command>': <command_function>}
-# TODO eventdict*
-def <command_function>(self, prefix, destination, message)
+## Plugin command definition
+__init\__():
 
-# Plugin hook definition
-def privmsg_hook(self, prefix, command, parameters)
+    self.commands = {'<command>': <command_function>}
+
+self:
+
+    def <command_function>(self, *event)
+    *event = (prefix, destination, parameters)
 
 
-# Defs
-self.protocol.users
-self.protocol.channels
-self.protocol.config <-> same config
-self.protocol.last_dest
-self.protocol.send_buffer
+## Plugin hook definition
+    def msg_hook(self, *event)
+    *event = (prefix, command, parameters)
+
+
+## API Definitions
+    self.protocol.users
+    self.protocol.channels
+    self.protocol.config 
+    self.protocol.last_dest
+    self.protocol.send_buffer
+
+
+## API Function Definitions
+Implemented in core.irc.IrcProtocol:
+
+    self.protocol.send(message)
+    self.protocol.send_response(destination, message)

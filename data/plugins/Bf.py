@@ -15,7 +15,7 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
 import logging
 
-from lib.plugin import Plugin
+from core.plugin import Plugin
 
 
 logger = logging.getLogger(__name__)

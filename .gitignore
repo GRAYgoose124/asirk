@@ -3,4 +3,4 @@ __pycache__/*
 data/plugins/__pycache__/*
 cmts
 data/plugins/data/*
-lib/__pycache__/*
+core/__pycache__/*

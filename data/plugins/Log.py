@@ -1,7 +1,7 @@
 import logging
 import os.path 
 
-from lib.plugin import Plugin
+from core.plugin import Plugin
 
 logger = logging.getLogger(__name__)
 

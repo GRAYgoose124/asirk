@@ -79,13 +79,12 @@ class Irk(PluginManager):
 
         for name, plugin in self.plugins.items():
             try:
-                # TODO: plugin.msg_hook(*event) 
-                #:TODO catch plugin exceptions so that they won't break the bot.
+                # TODO: plugin.msg_hook(*event), async dispatch
                 plugin.msg_hook(prefix, command, parameters)
             except (NotImplementedError, ValueError, IndexError) as e:
                 pass
             except Exception as e:
-                logger.warn("ERR| PRIVMSG hook!\nError: {}".format(e))
+                logger.warning("ERR| PRIVMSG hook!\nError: {}".format(e))
                 traceback.print_tb(e.__traceback__)
 
         if command == 'PRIVMSG':
@@ -100,6 +99,7 @@ class Irk(PluginManager):
                 return
                 
             if self.command_symbol == bot_cmd[0]:
+                logger.info("CMD| Trying {}".format(bot_cmd))
                 bot_cmd = bot_cmd[1:]
 
                 try:
@@ -115,14 +115,12 @@ class Irk(PluginManager):
                         if bot_cmd == k:
                             v(prefix, destination, message)
                             break
-                except ValueError as e:
-                    pass
                 except Exception as e:
-                    logger.warn("ERR| Plugin command!\nError: {}:{}".format(e.__class__.__name__, e))
+                    logger.warning("EXC| {} in plugin command!\n  {}\n\tmessage: {}".format(e.__class__.__name__, e, parameters))
                     traceback.print_tb(e.__traceback__)
 
         elif command == 'NOTICE':
-            logger.info(" ? | Caught a notice? {}".format(parameters))
+            logger.debug(" ? | Caught a notice? {}".format(parameters))
 
         elif command == '401':
             self.protocol.send_response(self.protocol.last_dest, "That nick is invalid.")
@@ -131,19 +129,25 @@ class Irk(PluginManager):
             pass
             
         else:
-            pass
+            logger.debug("???| Uncaught message: {}".format(parameters))
 
     # TODO: document parameters api then wrap in *event
     def _cmd_plugin(self, prefix, destination, parameters):
         """<loaded|list>|<unload|load|reload> [name|all] -> Modify bot's plugins."""
-        plugin_cmd = parameters.split(' ')[1]
+
+        # TODO: Plugin structured cmd API
+        try:
+            _, plugin_cmd, plugin_name = parameters.split(' ')
+        except ValueError:
+            plugin_name = None
+            _, plugin_cmd = parameters.split(' ')
+
+        logger.info("PLG| {}".format(plugin_cmd))
 
         if plugin_cmd == 'loaded':
             self.protocol.send_response(destination, "Loaded plugins: {}".format([i for i in self.plugins.keys()]))
 
         elif plugin_cmd == 'unload':
-            plugin_name = parameters.split(' ')[2]
-
             if plugin_name == "all":
                 self.unload_plugins()
                 self.protocol.send_response(destination, "All plugins unloaded.")
@@ -152,8 +156,6 @@ class Irk(PluginManager):
                 self.protocol.send_response(destination, "Plugin {} unloaded.".format(plugin_name))
 
         elif plugin_cmd == 'load':
-            plugin_name = parameters.split(' ')[2]
-
             if plugin_name == "all":
                 self.load_plugins()
                 self.protocol.send_response(destination, "All plugins loaded: {}".format([i for i in self.plugins.keys()]))
@@ -163,8 +165,6 @@ class Irk(PluginManager):
                 self.protocol.send_response(destination, "Invalid plugin to load.")
 
         elif plugin_cmd == 'reload':
-            plugin_name = parameters.split(' ')[2]
-
             if plugin_name == "all":
                 self._cmd_plugin(prefix, destination, '<> unload all')
                 self._cmd_plugin(prefix, destination, '<> load all')

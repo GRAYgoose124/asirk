@@ -1,5 +1,5 @@
 #   asIrk: asyncio irc bot
-#   Copyright (C) 2016  Grayson Miller
+#   Copyright (C) 2017  Grayson Miller
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License as published by
@@ -17,7 +17,7 @@ import re
 import os
 import json
 
-from lib.plugin import Plugin
+from core.plugin import Plugin
 
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,9 @@ class Factoid(Plugin):
             destination, message = parameters.split(' ', 1)
             message = message[1:]
 
-            # Stop on command this is a hack.
+            if sender == "NICKSERV":
+                return
+            # Stop on command - this is a hack.
             if message[0] == self.protocol.bot.command_symbol or message[0] == ':':
                 return
 
@@ -65,7 +67,6 @@ class Factoid(Plugin):
                     
                 if input in message:
                     self.protocol.send_response(destination, response)
-
 
         # TODO: Need to document event* API
         def add_factoid(self, prefix, destination, parameters):
@@ -101,7 +102,6 @@ class Factoid(Plugin):
                 
             parameters = "<> {}".format(params)
     
-            print(parameters)            
             if cmd == 'new':
                 self.add_factoid(prefix, destination, parameters)
             # Generalize ownership API TODO

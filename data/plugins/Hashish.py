@@ -1,5 +1,5 @@
 #   asIrk: asyncio irc bot
-#   Copyright (C) 2016  Grayson Miller
+#   Copyright (C) 2017  Grayson Miller
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License as published by
@@ -18,8 +18,8 @@ import hashlib
 import os
 import json
 
-from lib.plugin import Plugin
-from lib.irc import Irc
+from core.plugin import Plugin
+from core.irc import Irc
 
 
 logger = logging.getLogger(__name__)
@@ -39,10 +39,10 @@ class Hashish(Plugin):
         except (IOError, json.decoder.JSONDecodeError):
             self.digests = {}
         
-        logger.info(self.digests)
+        logger.info("MD5| {}".format(self.digests))
        
         self.caught_whois = {}
-        self.whois_cmds = ['311', '312', '318']
+        self.whois_cmds = ['311', '312', '317', '318']
         
         self.last_hashed = None
 
@@ -69,13 +69,13 @@ class Hashish(Plugin):
                     self.last_hashed = None
                     self.protocol.send_response(self.protocol.last_dest, "Set: {}, New Hash!".format(digest[::3]))
             else:
-                logger.warn("Unrequested WHOIS: {}".format(digest))
+                logger.debug("Unrequested WHOIS: {}".format(digest))
                 
             try:
                 with open(self.digests_file, "w") as f:
                     f.write(json.dumps(self.digests))
             except IOError:
-                logger.warn("DB cannot be saved!")
+                logger.warning("DB cannot be saved!")
                        
     def hash_whois(self, *event):
         parameters = event[2].split(' ', 1)[1].split(' ') 
