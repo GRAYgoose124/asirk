@@ -16,13 +16,12 @@ import logging
 
 from core.plugin import Plugin
 
-
 logger = logging.getLogger(__name__)
 
 
-class BasePlug(Plugin):
-    def __init__(self, bot):
-        super().__init__(bot)
+class PySpy(Plugin):
+    def __init__(self, protocol):
+        super().__init__(protocol)
 
         self.commands = {}
         self.admin_commands = {}

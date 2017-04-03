@@ -28,31 +28,41 @@ class Bf(Plugin):
             'bf': self.bf
         }
 
-    def bf(self, prefix, destination, parameters):
-        """<code> -> Brainfuck interpreter results."""
-        # TODO: API split parameter function
-        try:
-            code_string = None
-            _, code_string, *input_string = parameters.split(" ", 2)
-            input_string = input_string[0]
-            code_string = code_string.strip(' ')
-        except (IndexError, ValueError):
-            pass
+    def msg_hook(self, event):
+        pass
 
-        if code_string is None or code_string == '':
-            self.protocol.send_response(destination, "Invalid BF command.")
-            return
-                
+    def bf(self, event):
+        """<code> -> Brainfuck interpreter results."""
+        # TODO: API split parameter
         max_loops = 1024
         tape_size = 24
         tape = [0]*tape_size
         tape_pos = int(tape_size / 2)
         i_saved = []
 
+        code_string = ""
         output_string = ""
+        input_string = ""
 
         loop_n = 0
         i = 0
+
+        # TODO: Bot/IRC helper for handling queries vs channels automatically.
+        if event.dest == self.protocol.config['nick']:
+            dest = event.user
+        else:
+            dest = event.dest
+
+        # TODO: Clean this the up, wtf.
+        try:
+            _, code_string, input_string = event.msg.split(" ", 2)
+            code_string = code_string.strip(' ')
+        except (IndexError, ValueError):
+            pass
+        if code_string is None or code_string == '':
+            self.protocol.respond(dest, "Invalid BF command.")
+            return
+
         # TODO: Look at BID, fix bf code
         while i < len(code_string):
             if code_string[i] == '+':
@@ -93,4 +103,4 @@ class Bf(Plugin):
         else:
             message = repr(tape)
 
-        self.protocol.send_response(destination, message)
+        self.protocol.respond(dest, message)

@@ -1,5 +1,5 @@
 #   asIrk: asyncio irc bot
-#   Copyright (C) 2016  Grayson Miller
+#   Copyright (C) 2017  Grayson Miller
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License as published by
@@ -14,13 +14,11 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
 import logging
 import time
-import inspect
 import os
 import atexit
 import sys
 
 from core.plugin import Plugin
-from core.irc import Irc
 
 
 logger = logging.getLogger(__name__)
@@ -42,51 +40,57 @@ class BotUtils(Plugin):
 
         self.admin_commands = {
             'bound': self.bound,
-            'rawecho': self.rawecho,
             'conf': self.config,
             'restart': self.restart,
             'quit': self.quit
         }
 
-    def rawecho(self, prefix, destination, message):
-        self.protocol.send(' '.join(message.split(' ')[1:]))
+    def msg_hook(self, event):
+        pass
 
-    def echo(self, prefix, destination, message):
+    def echo(self, event):
         """<message> -> bot: <message>"""
-        if destination == self.protocol.config['nick']:
-            destination = prefix[0]
+        if event.dest == self.protocol.config['nick']:
+            dest = event.user
+        else:
+            dest = event.dest
 
-        self.protocol.send_response(destination, ' '.join(message.split(' ')[1:]))
+        self.protocol.respond(dest, ' '.join(event.msg.split(' ')[1:]))
 
-    def mysource(self, prefix, destination, parameters):
+    def mysource(self, event):
         """-> returns git url."""
-        self.protocol.send_response(destination, "My most recently published source can be found here: {}".format(GIT_SOURCE))
+        msg = "My most recently published source can be found here: {}"
+        self.protocol.respond(event.dest, msg.format(GIT_SOURCE))
 
-    def uptime(self, prefix, destination, parameters):
+    def uptime(self, event):
         """-> returns the average process time and uptime of the bot."""
         up = (time.time() - self.protocol.starttime) / 60
-        self.protocol.send_response(destination, "Uptime: {:.2f} minutes.".format(up))
+        self.protocol.respond(event.dest,
+                              "Uptime: {:.2f} minutes.".format(up))
 
-    def config(self, prefix, destination, parameters):
-        self.protocol.send_notice(prefix[0], "config: {}".format(self.protocol.config))
+    def config(self, event):
+        """-> returns the bot's current configuration."""
+        self.protocol.send_notice(event.user,
+                                  "config: {}".format(self.protocol.config))
 
-    def quit(self, prefix, destination, parameters):
+    def quit(self, event):
+        """-> stops the bot and shuts it down."""
         self.protocol.bot.stop()
 
-    def restart(self, prefix, destination, parameters):
+    def restart(self, event):
+        """-> stops the bot and restarts it."""
         def __restart():
+            # TODO: Does not work on windows with spaces in exe path.
             python = sys.executable
             os.execl(python, python, *sys.argv)
             
         atexit.register(__restart)
         self.protocol.bot.stop()
 
-    def bound(self, prefix, destination, parameters):
+    def bound(self, event):
         """<command> -> What plugin that command comes from"""
-        _, bound_cmd, *_ = parameters.split(' ', 2)
-            
-        message = "Invalid command."
-    
+        _, bound_cmd, *_ = event.msg.split(' ', 2)
+
         acl = self.protocol.bot.admin_commands.copy()
         command_list = dict(self.protocol.bot.commands, **acl)
     
@@ -101,56 +105,64 @@ class BotUtils(Plugin):
                 else:
                     d[cn].append(n)            
             
-            message = str(d).translate({ord(k): v for k, v in {',': None, '{': None, '}': None, '[': None, ']': '\r\n', '\'': None}.items()})
-            messages = message.split('\r\n')
+            msg = str(d).translate({ord(k): v for k, v in
+                                   {',': None, '{': None, '}': None,
+                                    '[': None, ']': '\r\n',
+                                    '\'': None}.items()})
+            messages = msg.split('\r\n')
+
             try:
                 for m in messages:
                     if m[0] == ' ':
                         m = m[1:]
-                    self.protocol.send_response(destination, m)
+                    self.protocol.respond(event.dest, m)
             except IndexError:
                 pass
         else:
             try:
-                message = command_list[bound_cmd].__self__.__class__
+                msg = command_list[bound_cmd].__self__.__class__
             except KeyError:
-                pass
+                return
 
-            message = "Command \'{}\' from \'{}\'".format(bound_cmd, str(message).split("\'")[1].split(".")[1])
+            s = str(msg).split("\'")[1].split(".")[1]
+            msg = "Command \'{}\' from \'{}\'".format(bound_cmd, s)
                             
-            self.protocol.send_response(destination, message)
+            self.protocol.respond(event.dest, msg)
 
-    def help(self, prefix, destination, parameters):
+    def help(self, event):
         """<command> -> extra information on using <command>."""
         cmds = []
 
         try:
-            help_cmd = parameters.split(' ')[1]
+            help_cmd = event.msg.split(' ')[1]
             
             if help_cmd == 'all':
                 for cmd in self.protocol.bot.admin_commands:
-                    self._single_help(cmd, destination) 
+                    self._single_help(cmd, event.dest)
                 for cmd in self.protocol.bot.commands:
-                    self._single_help(cmd, destination)
+                    self._single_help(cmd, event.dest)
             else:
-                self._single_help(help_cmd, destination)
+                self._single_help(help_cmd, event.dest)
         except IndexError:
-            cmds += ["{}*".format(cmd) for cmd in self.protocol.bot.admin_commands]
+            cmds += ["{}*".format(cmd)
+                     for cmd in self.protocol.bot.admin_commands]
             cmds += [cmd for cmd in self.protocol.bot.commands]
             
-            self.protocol.send_response(destination, ", ".join(cmds))
+            self.protocol.respond(event.dest, ", ".join(cmds))
 
     def _single_help(self, help_cmd, destination):
             try:
                 for line in self.protocol.bot.commands[help_cmd].__doc__.split('\n'):
-                    self.protocol.send_response(destination, "{} {}".format(help_cmd, line)) 
+                    self.protocol.respond(destination,
+                                          "{} {}".format(help_cmd, line))
                     return 
-            except:
+            except (ValueError, IndexError):
                 pass
             try:
                 for line in self.protocol.bot.admin_commands[help_cmd].__doc__.split('\n'):
-                    self.protocol.send_response(destination, "{} {}".format(help_cmd, line))
+                    self.protocol.respond(destination,
+                                          "{} {}".format(help_cmd, line))
                 return
-            except:
+            except (ValueError, IndexError):
                 pass
 

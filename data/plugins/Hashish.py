@@ -12,22 +12,20 @@
 #   GNU Affero General Public License for more details.
 #   You should have received a copy of the GNU Affero General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
-import time
-import logging
 import hashlib
-import os
 import json
+import logging
+import os
 
-from core.plugin import Plugin
 from core.irc import Irc
-
+from core.plugin import Plugin
 
 logger = logging.getLogger(__name__)
 
 
 class Hashish(Plugin):
-    def __init__(self, protocol):
-        super().__init__(protocol)
+    def __init__(self, bot):
+        super().__init__(bot)
 
         self.admin_commands = {'rehash': self.rehash_whois}
         self.commands = {'hash': self.hash_whois, 'login': self.login}
@@ -42,32 +40,36 @@ class Hashish(Plugin):
         logger.info("MD5| {}".format(self.digests))
        
         self.caught_whois = {}
-        self.whois_cmds = ['311', '312', '317', '318']
+        self.whois_cmds = ['311', '317', '318']
         
         self.last_hashed = None
 
-    def msg_hook(self, *event):
-        if event[1] in self.whois_cmds:
-            logger.info("   | {}".format(event[1]))
-            self.caught_whois[event[1]] = hashlib.md5(event[2].encode('ascii'))
+    def msg_hook(self, event):
+        if event.cmd in self.whois_cmds:
+            logger.info("   | {}".format(event.cmd))
+            self.caught_whois[event.cmd] = hashlib.md5(event.params.encode('ascii'))
 
         # RFC ENDOFWHOIS
-        if event[1] == '318':
-            digest = ""
-            digest = ":".join(map(lambda x: x.hexdigest(), self.caught_whois.values()))
+        if event.cmd == '318':
+            digest = ":".join(map(lambda x: x.hexdigest(),
+                                  self.caught_whois.values()))
     
             if self.last_hashed is not None:
                 if self.last_hashed in self.digests:
                     if self.digests[self.last_hashed] != digest:
-                        self.protocol.send_response(self.protocol.last_dest, "New: {}, Changed Hash!".format(digest[::3]))
+                        self.protocol.respond(self.protocol.last_dest,
+                                              "New: {}, Changed Hash!".format(digest[::3]))
                         if self.last_hashed == self.protocol.config['owner']:
-                            self.protocol.send_response(self.protocol.config['owner'], "Please Re-Auth")
+                            self.protocol.respond(self.protocol.config['owner'],
+                                                  "Please Re-Auth")
                     else:
-                        self.protocol.send_response(self.protocol.last_dest, "New: {}, Unchanged Hash.".format(digest[::3]))
+                        self.protocol.respond(self.protocol.last_dest,
+                                              "New: {}, Unchanged Hash.".format(digest[::3]))
                 else:
                     self.digests[self.last_hashed] = digest
                     self.last_hashed = None
-                    self.protocol.send_response(self.protocol.last_dest, "Set: {}, New Hash!".format(digest[::3]))
+                    self.protocol.respond(self.protocol.last_dest,
+                                          "Set: {}, New Hash!".format(digest[::3]))
             else:
                 logger.debug("Unrequested WHOIS: {}".format(digest))
                 
@@ -77,24 +79,28 @@ class Hashish(Plugin):
             except IOError:
                 logger.warning("DB cannot be saved!")
                        
-    def hash_whois(self, *event):
-        parameters = event[2].split(' ', 1)[1].split(' ') 
-        self.protocol.send(Irc.whois(parameters[0]))        
+    def hash_whois(self, event):
+        parameters = event.msg.split(' ', 1)[1].split(' ')[0]
+        self.protocol.send(Irc.whois(parameters))
 
-        self.last_hashed = parameters[0]
+        self.last_hashed = parameters
         
         if self.last_hashed in self.digests:
-            self.protocol.send_response(event[1], "Stored MD5: {}: {}".format(event[0][0], self.digests[self.last_hashed][::3]))
+            snipped = self.digests[self.last_hashed][::3]
+            msg = "Stored MD5: {}: {}".format(parameters, snipped)
+
+            self.protocol.respond(event.dest, msg)
     
-    def login(self, *event):
-        # TODO: Essentially password-protected query to rehash. Will require some bot restructure.
+    def login(self, event):
+        # TODO: Essentially password-protected query to rehash.
+        # Will require some bot restructure.
         pass
 
-    def rehash_whois(self, *event):
-        hashed = event[2].split(' ', 1)[1].split(' ')[0]
+    def rehash_whois(self, event):
+        hashed = event.msg.split(' ', 1)[1].split(' ')[0]
         try:
             del(self.digests[hashed])
         except (KeyError, IndexError): 
             pass
             
-        self.hash_whois(*event)
+        self.hash_whois(event)

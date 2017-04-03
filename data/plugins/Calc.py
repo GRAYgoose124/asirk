@@ -2,24 +2,29 @@ import logging
 
 from core.plugin import Plugin
 
+
 logger = logging.getLogger(__name__)
+
 
 class Calc(Plugin):
     def __init__(self, protocol):
         super().__init__(protocol)
         
-        self.commands = { 'rpn': self.rpn,
-                          }
-    
-    def rpn(self, prefix, destination, parameters):
+        self.commands = {'rpn': self.rpn}
+
+    def msg_hook(self, event):
+        pass
+
+    def rpn(self, event):
         """<equation> -> RPN calculator"""
         try:
-            equation = parameters.split(' ', 1)[1]
+            equation = event.msg.split(' ', 1)[1]
         except IndexError:
             return
-                
+
         stack = []
-                
+
+        msg = None
         for op in equation.split(' '):
             try:
                 v = float(op)
@@ -55,8 +60,8 @@ class Calc(Plugin):
                                 a = stack.pop()
                                 b = stack.pop()
                                 stack.append(b / a)
+                    msg = "Results: {}".format(stack)
                 except IndexError:
-                    self.protocol.send_response(destination, "Invalid RPN: \"{}\", {}".format(equation, stack))
-                    return 
+                    msg = "Invalid RPN: \"{}\", {}".format(equation, stack)
                     
-        self.protocol.send_response(destination, "Results: {}".format(stack))
+        self.protocol.respond(event.dest, msg)

@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 
 def load_config(location):
-    config = None
     with open(location) as f:
         config = json.load(f)
 
@@ -39,8 +38,9 @@ def interactive_build_config(default_config, use_defaults=True):
     config = default_config
     for key in default_config:
         t = type(default_config[key])
-        if (default_config[key] == '' or not use_defaults) or default_config[key] == [] \
-                or default_config[key] == {} or default_config[key] is None:
+        if (default_config[key] == '' or not use_defaults) \
+        or default_config[key] == [] or default_config[key] == {} \
+        or default_config[key] is None:
             if t is int:
                 config[key] = int(input("{}: ".format(key)))
             if t is str:

@@ -12,19 +12,19 @@
 #   GNU Affero General Public License for more details.
 #   You should have received a copy of the GNU Affero General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
-import time
 import logging
 
 from core.plugin import Plugin
-from core.irc import Irc
-
 
 logger = logging.getLogger(__name__)
 
 
 class RandUtils(Plugin):
-    def __init__(self, protocol):
-        super().__init__(protocol)
+    def __init__(self, bot):
+        super().__init__(bot)
 
         self.commands = {}
         self.admin_commands = {}
+
+    def msg_hook(self, event):
+        pass

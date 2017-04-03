@@ -1,5 +1,5 @@
 #   asIrk: asyncio irc bot
-#   Copyright (C) 2016  Grayson Miller
+#   Copyright (C) 2017  Grayson Miller
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License as published by
@@ -34,36 +34,44 @@ class IrcUtils(Plugin):
         self.admin_commands = {
             'join': self.join,
             'part': self.part,
+            'rawecho': self.rawecho
         }
 
-    def ping(self, prefix, destination, parameters):
+    def msg_hook(self, event):
+        pass
+
+    def rawecho(self, event):
+        self.protocol.send(' '.join(event.msg.split(' ')[1:]))
+
+    def ping(self, event):
         """<user> -> bot pings to <user>."""
         try:
-            user = parameters.split(' ')[1]
+            user = event.msg.split(' ')[1]
         except IndexError:
-            self.protocol.send_response(destination, "Incorrect ping command.")
+            self.protocol.respond(event.dest, "Incorrect ping command.")
             return
 
         if user == self.protocol.config['nick']:
-            self.protocol.send_response(destination, "THE FUCK YOU PING YOURSELF?")
+            self.protocol.respond(event.dest, "THE FUCK YOU PING YOURSELF?")
             return
 
         unix_timestamp = str(time.time()).replace(".", " ")
         self.protocol.send(Irc.ctcp_ping(user, unix_timestamp))
         logger.info("PNG| {}".format(user))
 
-    def join(self, prefix, destination, parameters):
+    def join(self, event):
         """<channel> -> bot joins <channel>."""
-        channel = parameters.split(' ')[1]
+        channel = event.msg.split(' ')[1]
 
         self.protocol.send(Irc.join(channel))
-        self.protocol.send_response(destination, "Joining: {}".format(channel))
+        self.protocol.respond(event.dest, "Joining: {}".format(channel))
 
-    def part(self, prefix, destination, parameters):
+    def part(self, event):
         """<channel> -> bot parts <channel>."""
-        channel = parameters.split(' ')[1]
+        channel = event.msg.split(' ')[1]
         self.protocol.send(Irc.part(channel))
-        self.protocol.send_response(destination, "Parted: {}".format(channel))
+        self.protocol.respond(event.dest, "Parted: {}".format(channel))
 
-    def joined(self, prefix, destination, parameters):
-        self.protocol.send_response(destination, "Channels: {}".format(list(self.protocol.users.keys())))
+    def joined(self, event):
+        self.protocol.respond(event.dest,
+                              "Channels: {}".format(list(self.protocol.users.keys())))

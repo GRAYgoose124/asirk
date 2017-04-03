@@ -1,4 +1,5 @@
-#   asIrk: asyncio irc bot
+# TODO: Fix all plugin headders.
+#   Alias: aliasing plugin for asIrk
 #   Copyright (C) 2017  Grayson Miller
 #
 #   This program is free software: you can redistribute it and/or modify
@@ -18,39 +19,52 @@ from core.plugin import Plugin
 
 logger = logging.getLogger(__name__)
 
+
 class Alias(Plugin):
     def __init__(self, protocol):
         super().__init__(protocol)
 
-        self.alias_list = {'dice': 'help'}
+        self.aliases = {'dice': 'help'}
         
-        self.commands = { 'newalias': self.newalias,
-                          'oldalias': self.oldalias
-                          }
+        self.commands = {'newalias': self.newalias,
+                         'oldalias': self.oldalias}
         
     # TODO: Functionalize command usage in bot.py 
-    def msg_hook(self, prefix, command, parameters):
-        channel, message = parameters.split(' ', 1)
-        message = message[1:]
-                
+    def msg_hook(self, event):
+        try:
+            channel, message = event.params.split(' ', 1)
+            message = message[1:]
+        except (ValueError, IndexError):
+            return
+
         if message[0] == self.protocol.bot.command_symbol:
-            cmd, params = message, ' '
+            cmd, params = message, ''
 
             try:
                 cmd, params = message.split(' ', 1)
-                cmd = cmd[1:]
-            except:
-                pass
-                
-            if cmd in self.alias_list:
-                alias_msg = (prefix, command, "{} :.{} {}".format(channel, self.alias_list[cmd], params))
+            except (ValueError, IndexError):
+                params = ''
 
+            cmd = cmd[1:]
+
+            logger.debug('ALS| Seeking alias: {}'.format(cmd))
+
+            if cmd in self.aliases:
+                alias_msg = (tuple(event.prefix), "PRIVMSG",
+                             "{} :.{} {}".format(channel, self.aliases[cmd],
+                                                 params))
+
+                logger.info("ALS| {}".format(alias_msg))
+
+                # TODO: split process so you can hook into a bot API side.
                 self.protocol.bot.process(*alias_msg)
-                
-                logger.info("ALS| Alias found: {} -> {}".format(cmd, self.alias_list[cmd]))
 
-    def newalias(self, prefix, command, parameters):
+                msg = "ALS| Alias found: {} -> {}".format(cmd,
+                                                          self.aliases[cmd])
+                logger.info(msg)
+
+    def newalias(self, event):
         pass        
         
-    def oldalias(self, prefix, command, parameters):
+    def oldalias(self, event):
         pass

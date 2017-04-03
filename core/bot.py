@@ -16,10 +16,8 @@ import logging
 import asyncio
 import functools
 import time
-import os
-import sys
-import atexit
 import traceback
+from collections import namedtuple
 
 from .irc import Irc, IrcProtocol
 from .plugin import PluginManager
@@ -28,6 +26,12 @@ from .plugin import PluginManager
 logger = logging.getLogger(__name__)
 
 
+# API helpers
+IrcEvent = namedtuple('IrcEvent', 'prefix cmd params')
+BotEvent = namedtuple('BotEvent', 'user dest msg')
+
+
+# TODO: Rename to Bot
 class Irk(PluginManager):
     def __init__(self, loop, config):
         super().__init__(None, config['plugin_path'])
@@ -42,28 +46,29 @@ class Irk(PluginManager):
         self.command_symbol = '.'
         self.commander = None
     
-        self.admin_commands.update({'plugin': self._cmd_plugin})
+        self.admin_commands.update({'plugin': self.__cmd_plugin})
 
     def start(self):
         logger.info(" O | Starting...")
-        self.client = self.loop.create_connection(functools.partial(IrcProtocol,
-                                                                    future=self.client_completed,
-                                                                    config=self.config),
-                                                  self.config['host'],
+        prot = functools.partial(IrcProtocol, future=self.client_completed,
+                                 config=self.config)
+
+        self.client = self.loop.create_connection(prot, self.config['host'],
                                                   self.config['port'],
                                                   ssl=self.config['ssl'])
 
-        self.transport, self.protocol = self.loop.run_until_complete(self.client)
+        self.transport, self.protocol = \
+        self.loop.run_until_complete(self.client)
 
         self.protocol.starttime = time.time()
         
         self.protocol.set_callback(self.process)
-        # TODO: This shouldn't be necessary but for compatibility.... so API 
-        # to self.bot.etc and self.protocol.etc
+        # TODO: This shouldn't be necessary but hack...
         self.protocol.set_bot(self)
 
         self.load_plugins()
-        logger.info(" P | Loaded plugins: {}".format(list(self.plugins.keys())))
+        plugs = list(self.plugins.keys())
+        logger.info(" P | Loaded plugins: {}: {}".format(plugs, len(plugs)))
 
     def stop(self):
         logger.info(" X | Stopping...")
@@ -79,12 +84,13 @@ class Irk(PluginManager):
 
         for name, plugin in self.plugins.items():
             try:
-                # TODO: plugin.msg_hook(*event), async dispatch
-                plugin.msg_hook(prefix, command, parameters)
-            except (NotImplementedError, ValueError, IndexError) as e:
+                # TODO: async dispatch
+                plugin.msg_hook(IrcEvent(prefix, command, parameters))
+            except NotImplementedError:
                 pass
             except Exception as e:
-                logger.warning("ERR| PRIVMSG hook!\nError: {}".format(e))
+                msg = "ERR| PRIVMSG hook! {}\n{}: {}"
+                logger.warning(msg.format(name, e.__class__.__name__, e))
                 traceback.print_tb(e.__traceback__)
 
         if command == 'PRIVMSG':
@@ -99,85 +105,76 @@ class Irk(PluginManager):
                 return
                 
             if self.command_symbol == bot_cmd[0]:
-                logger.info("CMD| Trying {}".format(bot_cmd))
+                logger.debug("CMD| Trying {}".format(bot_cmd))
                 bot_cmd = bot_cmd[1:]
 
                 try:
-                    # TODO: API API API
-                    # TODO: Better admin authentication, multiuser
-                    # TODO: multinetwork
+                    # TODO: Better admin authentication,
+                    # TODO: multiuser, multinetwork
                     if self.commander == self.config['owner']:
                         for k, v in self.admin_commands.items():
                             if bot_cmd == k:
-                                v(prefix, destination, message)
+                                v(BotEvent(user, destination, message))
                                 break
                     for k, v in self.commands.items():
                         if bot_cmd == k:
-                            v(prefix, destination, message)
+                            v(BotEvent(user, destination, message))
                             break
                 except Exception as e:
-                    logger.warning("EXC| {} in plugin command!\n  {}\n\tmessage: {}".format(e.__class__.__name__, e, parameters))
+                    msg = "EXC| {} in plugin command!\n  -> {}\n\tmessage: {}"
+                    logger.warning(msg.format(e.__class__.__name__,
+                                              e, parameters))
                     traceback.print_tb(e.__traceback__)
-
         elif command == 'NOTICE':
             logger.debug(" ? | Caught a notice? {}".format(parameters))
-
         elif command == '401':
-            self.protocol.send_response(self.protocol.last_dest, "That nick is invalid.")
-        
+            self.protocol.respond(self.protocol.last_dest,
+                                  "That nick is invalid.")
         elif command == '311':
             pass
-            
         else:
-            logger.debug("???| Uncaught message: {}".format(parameters))
+            logger.debug(" ? | Uncaught: {}".format(command))
 
-    # TODO: document parameters api then wrap in *event
-    def _cmd_plugin(self, prefix, destination, parameters):
-        """<loaded|list>|<unload|load|reload> [name|all] -> Modify bot's plugins."""
+    # TODO: Move to hardcoded autoloaded plugin?
+    def __cmd_plugin(self, event):
+        """<list>|<unload|load> [name|all] -> Modify bot's plugins."""
 
-        # TODO: Plugin structured cmd API
+        # TODO: Plugin structured cmd API, but at bot or plugin level?
+        # TODO: have hooks return message and internally send?
+        # Commands only use send_response once?
         try:
-            _, plugin_cmd, plugin_name = parameters.split(' ')
+            _, plugin_cmd, plugin_name = event.msg.split(' ')
         except ValueError:
             plugin_name = None
-            _, plugin_cmd = parameters.split(' ')
+            _, plugin_cmd = event.msg.split(' ')
 
         logger.info("PLG| {}".format(plugin_cmd))
 
-        if plugin_cmd == 'loaded':
-            self.protocol.send_response(destination, "Loaded plugins: {}".format([i for i in self.plugins.keys()]))
-
+        msg = None
+        if plugin_cmd == 'list':
+            msg = "Plugins: "
+            loaded_plugs = self.plugins.keys()
+            for plug in self.list_plugins():
+                plug = plug[:-3]
+                if plug in loaded_plugs:
+                    msg += "*"
+                msg += "{}, ".format(plug)
+            msg += "loaded: {}.".format(len(loaded_plugs))
         elif plugin_cmd == 'unload':
             if plugin_name == "all":
                 self.unload_plugins()
-                self.protocol.send_response(destination, "All plugins unloaded.")
+                msg = "All plugins unloaded."
             elif plugin_name in self.plugins:
                 self.unload_plugin(plugin_name)
-                self.protocol.send_response(destination, "Plugin {} unloaded.".format(plugin_name))
-
+                msg = "Plugin {} unloaded.".format(plugin_name)
         elif plugin_cmd == 'load':
             if plugin_name == "all":
                 self.load_plugins()
-                self.protocol.send_response(destination, "All plugins loaded: {}".format([i for i in self.plugins.keys()]))
+                msg = "Plugins loaded: {}".format(list(self.plugins.keys()))
             elif self.load_plugin(plugin_name) is not None:
-                self.protocol.send_response(destination, "Plugin {} loaded.".format(plugin_name))
+                msg = "Plugin {} loaded.".format(plugin_name)
             else:
-                self.protocol.send_response(destination, "Invalid plugin to load.")
+                msg = "Invalid plugin to load: {}.".format(plugin_name)
 
-        elif plugin_cmd == 'reload':
-            if plugin_name == "all":
-                self._cmd_plugin(prefix, destination, '<> unload all')
-                self._cmd_plugin(prefix, destination, '<> load all')
-            elif plugin_name in self.plugins:
-                # TODO: Fix this...derp...
-                self._cmd_plugin(prefix, destination, '<> unload {}'.format(plugin_name))
-                self._cmd_plugin(prefix, destination, '<> load {}'.format(plugin_name))
-            else:
-                self.protocol.send_response(destination, "Invalid plugin to reload.")
-
-        elif plugin_cmd == 'list':
-            plugs = [i for i in self.list_plugins()]
-            self.protocol.send_response(destination, "{}: {}".format(plugs, len(plugs)))
-
-            # TODO: Plugin error responses, catch the splits exceptions
-
+        if msg is not None:
+            self.protocol.respond(event.dest, msg)

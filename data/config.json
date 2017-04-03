@@ -1,9 +1,16 @@
-{"host": "irc.foonetic.net", 
-"ident": "", 
-"mode": "+B", 
-"ssl": false, 
-"unused": "*", 
-"owner": "mrsnafu", 
-"port": "6667", 
-"user": "borg", 
-"pass": "fxcva", "owner_email": "", "channels": ["#snafu"], "nick": "DuckBorg"}
+{
+  "host": "irc.foonetic.net",
+  "ident": "",
+  "mode": "+B",
+  "ssl": false,
+  "unused": "*",
+  "owner": "mrsnafu",
+  "port": "6667",
+  "user": "borg",
+  "pass": "fxcva",
+  "owner_email": "",
+  "channels": [
+    "#snafu"
+  ],
+  "nick": "DuckBorg"
+}

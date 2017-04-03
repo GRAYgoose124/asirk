@@ -1,11 +1,17 @@
-#About
-`asIrk` is an irc bot designed to be lean and depend on dynamic plugins for functionality. 
-It uses asynchronous IO (asyncio) and the end goal is complete async dispatching of plugins,
-including true parallel processing. 
+# About
+`asIrk` is an irc bot designed to be lean and depend on dynamic plugins for 
+functionality. It uses asynchronous IO (asyncio) and the end goal is complete 
+async dispatching of plugins, including true parallel processing. 
 
-#Dependencies
+# Dependencies
     uvloop (Python 3.5.X, optional)
 
-#Running
+# Running
     git clone "https://github.com/GRAYgoose124/asirk"
+then
+
     python asirk
+or 
+
+    cd asirk
+    python __main__.py

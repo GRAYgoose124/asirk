@@ -1,5 +1,5 @@
 #   asIrk: asyncio irc bot
-#   Copyright (C) 2017  Grayson Miller
+#   Copyright (C) 2016  Grayson Miller
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License as published by
@@ -16,16 +16,21 @@ import logging
 
 from core.plugin import Plugin
 
-
 logger = logging.getLogger(__name__)
 
 
-class BasePlug(Plugin):
-    def __init__(self, bot):
-        super().__init__(bot)
+ski_string = ''
 
-        self.commands = {}
+
+class SKI(Plugin):
+    def __init__(self, protocol):
+        super().__init__(protocol)
+
+        self.commands = {'ski': self.ski}
         self.admin_commands = {}
 
     def msg_hook(self, event):
+        pass
+
+    def ski(self, event):
         pass

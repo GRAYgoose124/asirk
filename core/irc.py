@@ -16,7 +16,6 @@ import logging
 import asyncio
 import time
 import re
-import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +40,12 @@ class IrcProtocol(asyncio.Protocol):
         self.channels = []
 
         self.bot = None
-        self.bot_callback = lambda x, y, z: None
+        self.callback = lambda x, y, z: None
         self.last_dest = None
         self.transport = None
         self.send_buffer = ""
         self.elapsed = 0 
         
-        # TODO: Callbacks for hooks from bot?
         self.irc_events = {
             'PRIVMSG': self._handle_privmsg,
             'NOTICE': self._handle_notice,
@@ -66,11 +64,12 @@ class IrcProtocol(asyncio.Protocol):
 
     # Protocol Events
     def connection_made(self, transport):
-        logger.info("CON| {}".format(transport.get_extra_info('peername')))
+        logger.debug("CON| {}".format(transport.get_extra_info('peername')))
         self.transport = transport
 
         self.send(Irc.nick(self.config['nick']))
-        self.send(Irc.user(self.config['user'], self.config['unused'], self.config['owner']))
+        self.send(Irc.user(self.config['user'], self.config['unused'],
+                           self.config['owner']))
 
     def data_received(self, data):
         data = data.decode('utf-8')
@@ -90,11 +89,7 @@ class IrcProtocol(asyncio.Protocol):
                 prefix, command, parameters = Irc.split_message(message)
                 prefix = Irc.split_prefix(prefix)
 
-
                 logger.info("-->| {}".format(message))
-                logger.debug("\n\t\t\t   | {}".format(datetime.datetime.now().time()))
-
-                self.bot_callback(prefix, command, parameters)
 
                 irc_callback = self.irc_events.get(command, self._no_handle)
                 if isinstance(irc_callback, list):
@@ -103,30 +98,34 @@ class IrcProtocol(asyncio.Protocol):
                 else:
                     irc_callback(message)
 
+                self.callback(prefix, command, parameters)
+
         self.message_buffer = prepend_buffer
 
     def connection_lost(self, exc):
-        logger.info("END| Connection closed.")
+        logger.debug("END| Connection closed.")
         self.f.set_result(True)
 
     # Utility functions
     # TODO: add more irc_helpers
-    def send(self, message):
-        logger.info("<--| {}".format(message))
-        logger.debug("\n\t\t\t   | {}".format(datetime.datetime.now().time()))
+    def send(self, irc_msg):
+        logger.info("<--| {}".format(irc_msg))
 
-        self.send_buffer += "{}\r\n".format(message)
-        self.transport.write(bytes("{}\r\n".format(message), encoding='utf-8'))
+        self.send_buffer += "{}\r\n".format(irc_msg)
+        self.transport.write(bytes("{}\r\n".format(irc_msg), encoding='utf-8'))
 
-    def send_response(self, dest, message):
+    # TODO: Move to Irk?
+
+    def respond(self, dest, message):
         if dest is None:
             return
 
-        # TODO: generalize message splitting.
+        # TODO: generalize message splitting and keep in Irc
         if len(message) > Irc.msg_size:
             n_msgs = int(len(message) / Irc.msg_size)
             for i in range(n_msgs+1):
-                self.send(Irc.privmsg(dest, message[Irc.msg_size*i:Irc.msg_size*(i+1)]))
+                frame = message[Irc.msg_size*i:Irc.msg_size*(i+1)]
+                self.send(Irc.privmsg(dest, frame))
         else:
             self.send(Irc.privmsg(dest, message))
 
@@ -137,16 +136,20 @@ class IrcProtocol(asyncio.Protocol):
         self.send(Irc.notice(dest, message))
 
     def set_callback(self, func):
-        self.bot_callback = func
-    
+        self.callback = func
+
+    # TODO: Remove this: irc shouldn't need to know about bot.
+    # (Plugin API hack atm)
     def set_bot(self, bot):
         self.bot = bot
 
     # IRC handlers
-    def _qno_handle(self, message):
+    @staticmethod
+    def _qno_handle(message):
         pass
 
-    def _no_handle(self, message):
+    @staticmethod
+    def _no_handle(message):
         _, command, _ = Irc.split_message(message)
         logger.log(level=5, msg="Unknown IRC command: {}".format(command))
 
@@ -155,7 +158,6 @@ class IrcProtocol(asyncio.Protocol):
         sender, user, ident = Irc.split_prefix(prefix)
 
         channel, msg = parameters.split(" ", 1)
-
 
         if channel != self.config['nick']:
             self.last_dest = channel
@@ -174,7 +176,8 @@ class IrcProtocol(asyncio.Protocol):
         except IndexError:
             return
             
-        # Handles the case of ": <text>". Someone started their message with a space.            
+        # Handles the case of ": <text>". Someone started their message
+        # with a space.
         if tokens[1] == ':':
             privmsg_command = tokens[2]
             message = "{} {}".format(privmsg_command, " ".join(tokens[2:]))
@@ -185,10 +188,8 @@ class IrcProtocol(asyncio.Protocol):
         # CTCP PRIVMSGs
         if privmsg_command == '\x01PING':
             self.send(Irc.ctcp_pong(sender, message.split(' ')[1]))
-
         elif privmsg_command == '\x01ACTION':
             pass
-
         elif privmsg_command[0] == '\x01':
             logger.debug('Missing CTCP command %s', privmsg_command)
 
@@ -204,12 +205,14 @@ class IrcProtocol(asyncio.Protocol):
             prefix, command, parameters = Irc.split_message(message)
 
             logger.info("PNG| response: {}".format(time_taken))
-            self.send_response(self.last_dest, "Time taken: {}".format(time_taken))
+            self.respond(self.last_dest, "Time taken: {}".format(time_taken))
 
-    def _no_such_nick(self, message):
+    @staticmethod
+    def _no_such_nick(message):
         pass
 
-    def _no_such_chan(self, message):
+    @staticmethod
+    def _no_such_chan(message):
         pass
 
     def _set_mode(self, message):
@@ -260,8 +263,6 @@ class IrcProtocol(asyncio.Protocol):
                     self.users[channel].pop(i)
  
     def _handle_mode(self, message):
-        prefix, command, parameters = Irc.split_message(message)
-
         for channel in self.config['channels']:
             self.send(Irc.join(channel))
 
@@ -277,7 +278,8 @@ class IrcProtocol(asyncio.Protocol):
         if re.search("Nickname is already in use", parameters):
             self.config['nick'] = "_{}".format(self.config['nick'])
             self.send(Irc.nick(self.config['nick']))
-            self.send(Irc.user(self.config['user'], self.config['unused'], self.config['owner']))
+            self.send(Irc.user(self.config['user'], self.config['unused'],
+                               self.config['owner']))
             self.send(Irc.mode(self.config['nick'], self.config['mode']))
 
 
@@ -317,20 +319,24 @@ class Irc:
 
     @staticmethod
     def split_prefix(prefix):
-        sender, user, ident = None, None, None
+        nick, user, ident = None, None, None
 
         if prefix is not None:
             if '!' in prefix:
-                sender = prefix.split('!')[0][1:]
+                nick = prefix.split('!')[0][1:]
                 ident = prefix.split('!')[1]
 
                 if '@' in ident:
                     user, ident = ident.split('@')
             else:
-                sender = prefix
+                nick = prefix
                 ident = prefix
 
-        return sender, user, ident
+        return nick, user, ident
+
+    @staticmethod
+    def join_prefix(nick, user, ident):
+        return "{}!{}@{}".format(nick, user, ident)
 
     @staticmethod
     def wrap_ctcp(message):
@@ -390,19 +396,16 @@ class Irc:
     @staticmethod
     def server_pong(message):
         """
-        This should be used to respond to a server PING.
-        The server PING comes with data that should be
-        echoed in the PONG."""
+        This should be used to respond to a server PING. The server PING
+        comes with data that should be echoed in the PONG."""
         return "PONG {}".format(message)
 
     @staticmethod
     def ctcp_ping(destination, timestamp):
         """
-        This is a CTCP ping sent to a destination and
-        the expected response is a ctcp_pong with the
-        same timestamp. The time delta from the ctcp_ping
-        and the expected ctcp_pong gives an estimate travel
-        time.
+        This is a CTCP ping sent to a destination and the expected response
+        is a ctcp_pong with the same timestamp. The time delta from the
+        ctcp_ping and the expected ctcp_pong gives an estimate travel time.
         """
         message = Irc.wrap_ctcp("PING {}".format(timestamp))
         return Irc.privmsg(destination, message)

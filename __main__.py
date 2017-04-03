@@ -13,39 +13,41 @@
 #   You should have received a copy of the GNU Affero General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
 import os
+import os.path
 import sys
 import asyncio
 import logging
 import argparse 
 
-# TODO: Fix debug
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s.%(msecs)03d [%(levelname)4s] %(name)10s:%(lineno)4s |%(message)s',
-                    datefmt="%H%M:%S")
+from core.bot import Irk
+from core.config import load_config
+
+logging.basicConfig(level=logging.DEBUG,
+                    format=
+'%(levelname).1s %(asctime)s.%(msecs)03d [%(name)10s]: %(lineno)4s |%(message)s',
+                    datefmt="%H%M%S")
 logger = logging.getLogger(__name__)
 
 if os.name != 'nt':
     try:
         import uvloop
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-    except:
+    except ImportError:
         logger.warning(" Not using uvloop!")
 else:
     logger.warning(" Not using uvloop!")
-
-from core.bot import Irk
-from core.config import load_config, save_config
 
 
 def args():
     parser = argparse.ArgumentParser(description="asyncio irc bot.")
     results = parser.parse_args(*sys.argv)
-    
+
+
 def main():
     loop = asyncio.get_event_loop()
 
-    # This is really just because I'm using pycharm on windows...
-    if os.name != 'nt':
+    # TODO: Stop assuming.
+    if os.path.basename(os.getcwd()) != 'asirk':
         home_path = os.path.join(os.getcwd(), 'asirk')
     else:
         home_path = os.getcwd()
