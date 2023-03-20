@@ -53,6 +53,7 @@ class Irk(PluginManager):
         prot = functools.partial(IrcProtocol, future=self.client_completed,
                                  config=self.config)
 
+        logger.info("   | Connecting to {}:{}".format(self.config['host'], self.config['port']))
         self.client = self.loop.create_connection(prot, self.config['host'],
                                                   self.config['port'],
                                                   ssl=self.config['ssl'])
@@ -132,6 +133,8 @@ class Irk(PluginManager):
                                   "That nick is invalid.")
         elif command == '311':
             pass
+        elif command == 'PING':
+            pass # Handled by protocol - but we could do someting here.
         else:
             logger.debug(" ? | Uncaught: {}".format(command))
 

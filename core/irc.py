@@ -223,9 +223,12 @@ class IrcProtocol(asyncio.Protocol):
         split_params = parameters.split(' ')
         users = split_params[3:][:-1]
 
+        channel = split_params[2]
+        if len(users) == 0:
+            self.users[channel] = []
+
         # Remove leading ':' from first user.
         users[0] = users[0][1:]
-        channel = split_params[2]
 
         if channel not in self.users:
             self.users[channel] = users
@@ -349,7 +352,7 @@ class Irc:
 
     @staticmethod
     def privmsg(destination, message):
-        if message is "" or message is None:
+        if len(message) == 0 or message is None:
             return None
         return "PRIVMSG {} :{}".format(destination, message)
 

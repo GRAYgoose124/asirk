@@ -4,3 +4,4 @@ data/plugins/__pycache__/*
 cmts
 data/plugins/data/*
 core/__pycache__/*
+*.json

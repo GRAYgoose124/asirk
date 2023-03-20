@@ -57,6 +57,7 @@ class Factoid(Plugin):
 
             message = message[1:]
 
+            # TODO: this should probably be a plugin utility function
             if sender == "NICKSERV" or event.cmd != "PRIVMSG" or \
                message[0] == self.protocol.bot.command_symbol or \
                message[0] == ':':
