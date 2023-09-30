@@ -1,6 +1,6 @@
 .idea/*
 cmts
-**/data/plugins/data/*
+**/data/*
 config.json
 *.egg-info
 *.pyc

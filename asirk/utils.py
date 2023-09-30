@@ -10,8 +10,8 @@ def createDefaultConfig(config_path):
         json.dump(
             {
                 "host": "irc.freenode.net",
-                "port": "6667",
-                "ssl": False,
+                "port": "7000",
+                "ssl": True,
                 "nick": "asirk",
                 "user": "asirk",
                 "unused": "*",

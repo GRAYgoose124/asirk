@@ -37,25 +37,25 @@ def args():
 def main():
     logging.basicConfig(
         level=logging.DEBUG,
-        format="%(levelname).1s %(asctime)s.%(msecs)03d [%(name)10s]: %(lineno)4s |%(message)s",
+        format="%(levelname).1s [%(name)15.15s]: %(lineno)4s |%(message)s",
         datefmt="%H%M%S",
     )
     useUVloop()
     loop = asyncio.get_event_loop()
 
-    data_path = Path(__file__).parent / "data"
+    home_path = Path(__file__).parent
+    data_path = home_path / "data"
     config_path = data_path / "config.json"
-    plugin_path = data_path / "plugins"
+    plugin_path = home_path / "plugins"
 
     if not config_path.exists():
         createDefaultConfig(config_path)
 
     config = load_config(config_path)
 
-    config["plugin_path"] = plugin_path
-    config["plugin_data_path"] = os.path.join(plugin_path, "data")
+    config["plugin_data_path"] = data_path
 
-    asirk = Irk(loop, config)
+    asirk = Irk(loop, config, plugin_path)
     asirk.start()
 
     loop.run_until_complete(asirk.client_completed)
