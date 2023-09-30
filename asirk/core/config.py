@@ -23,11 +23,14 @@ def load_config(location):
     with open(location) as f:
         config = json.load(f)
 
+    config["host"] = bytes(config["host"], "utf-8")
+    config["port"] = bytes(config["port"], "utf-8")
+
     return config
 
 
 def save_config(location, config):
-    with open(location, 'w') as f:
+    with open(location, "w") as f:
         json.dump(config, f)
 
 
@@ -38,9 +41,12 @@ def interactive_build_config(default_config, use_defaults=True):
     config = default_config
     for key in default_config:
         t = type(default_config[key])
-        if (default_config[key] == '' or not use_defaults) \
-        or default_config[key] == [] or default_config[key] == {} \
-        or default_config[key] is None:
+        if (
+            (default_config[key] == "" or not use_defaults)
+            or default_config[key] == []
+            or default_config[key] == {}
+            or default_config[key] is None
+        ):
             if t is int:
                 config[key] = int(input("{}: ".format(key)))
             if t is str:
@@ -50,7 +56,7 @@ def interactive_build_config(default_config, use_defaults=True):
             if t is dict:
                 config[key] = interactive_build_config(default_config[key])
             if t is list:
-                print("Enter \'DONE\' when finished.")
+                print("Enter 'DONE' when finished.")
                 inp = None
                 config[key] = []
                 while inp != "DONE":

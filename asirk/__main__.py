@@ -15,6 +15,7 @@
 import json
 import os
 import os.path
+from pathlib import Path
 import sys
 import asyncio
 import logging
@@ -23,69 +24,34 @@ import argparse
 from .core.bot import Irk
 from .core.config import load_config
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(levelname).1s %(asctime)s.%(msecs)03d [%(name)10s]: %(lineno)4s |%(message)s",
-    datefmt="%H%M%S",
-)
-logger = logging.getLogger(__name__)
+from .utils import createDefaultConfig, useUVloop
 
-if os.name != "nt":
-    try:
-        import uvloop
-
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-    except ImportError:
-        logger.warning(" Not using uvloop!")
-else:
-    logger.warning(" Not using uvloop!")
+log = logging.getLogger(__name__)
 
 
 def args():
     parser = argparse.ArgumentParser(description="asyncio irc bot.")
-    results = parser.parse_args(*sys.argv)
+    return parser.parse_args()
 
 
 def main():
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(levelname).1s %(asctime)s.%(msecs)03d [%(name)10s]: %(lineno)4s |%(message)s",
+        datefmt="%H%M%S",
+    )
+    useUVloop()
     loop = asyncio.get_event_loop()
 
-    # TODO: Stop assuming.
-    if os.path.basename(os.getcwd()) != "asirk":
-        home_path = os.path.join(os.getcwd(), "asirk")
-    else:
-        home_path = f"{os.getcwd()}/asirk"
+    data_path = Path(__file__).parent / "data"
+    config_path = data_path / "config.json"
+    plugin_path = data_path / "plugins"
 
-    data_path = os.path.join(home_path, "data")
-
-    config_path = os.path.join(data_path, "config.json")
-    plugin_path = os.path.join(data_path, "plugins")
-
-    if not os.path.exists(config_path):
-        # dump default config
-        print(f"Creating default config at {config_path}")
-        with open(config_path, "w") as f:
-            json.dump(
-                {
-                    "host": "irc.freenode.net",
-                    "port": "6667",
-                    "ssl": False,
-                    "nick": "asirk",
-                    "user": "asirk",
-                    "unused": "*",
-                    "pass": "update_me",
-                    "mode": "+B",
-                    "owner": "your_nick",
-                    "channels": ["#asIrk"],
-                },
-                f,
-                indent=2,
-            )
+    if not config_path.exists():
+        createDefaultConfig(config_path)
 
     config = load_config(config_path)
 
-    # asyncio Protocols requires b'host:port' format.
-    config["host"] = bytes(config["host"], "utf-8")
-    config["port"] = bytes(config["port"], "utf-8")
     config["plugin_path"] = plugin_path
     config["plugin_data_path"] = os.path.join(plugin_path, "data")
 
