@@ -1,6 +1,6 @@
 import logging
 
-from core.plugin import Plugin
+from asirk.core.plugin import Plugin
 
 
 logger = logging.getLogger(__name__)
@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 class Calc(Plugin):
     def __init__(self, protocol):
         super().__init__(protocol)
-        
-        self.commands = {'rpn': self.rpn}
+
+        self.commands = {"rpn": self.rpn}
 
     def msg_hook(self, event):
         pass
@@ -18,14 +18,14 @@ class Calc(Plugin):
     def rpn(self, event):
         """<equation> -> RPN calculator"""
         try:
-            equation = event.msg.split(' ', 1)[1]
+            equation = event.msg.split(" ", 1)[1]
         except IndexError:
             return
 
         stack = []
 
         msg = None
-        for op in equation.split(' '):
+        for op in equation.split(" "):
             try:
                 v = float(op)
                 stack.append(v)
@@ -33,35 +33,35 @@ class Calc(Plugin):
                 try:
                     if isinstance(op, str):
                         for c in op:
-                            if c == '+':
+                            if c == "+":
                                 a = stack.pop()
                                 b = stack.pop()
                                 stack.append(a + b)
-                            elif c == '-':
+                            elif c == "-":
                                 a = stack.pop()
                                 b = stack.pop()
                                 stack.append(b - a)
-                            elif c == '*':
+                            elif c == "*":
                                 a = stack.pop()
                                 b = stack.pop()
                                 stack.append(a * b)
-                            elif c == '^':
+                            elif c == "^":
                                 a = stack.pop()
                                 b = stack.pop()
                                 if b < 10**10:
-                                    stack.append(a ** b)
-                            elif c == '|':
+                                    stack.append(a**b)
+                            elif c == "|":
                                 a = stack.pop()
                                 b = stack.pop()
-                                t = a ** b
-                                c = a ** t
+                                t = a**b
+                                c = a**t
                                 stack.append(c)
-                            elif c == '/':
+                            elif c == "/":
                                 a = stack.pop()
                                 b = stack.pop()
                                 stack.append(b / a)
                     msg = "Results: {}".format(stack)
                 except IndexError:
-                    msg = "Invalid RPN: \"{}\", {}".format(equation, stack)
-                    
+                    msg = 'Invalid RPN: "{}", {}'.format(equation, stack)
+
         self.protocol.respond(event.dest, msg)

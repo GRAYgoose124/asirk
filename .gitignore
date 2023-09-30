@@ -1,7 +1,6 @@
 .idea/*
-__pycache__/*
-data/plugins/__pycache__/*
 cmts
-data/plugins/data/*
-core/__pycache__/*
-*.json
+**/data/plugins/data/*
+config.json
+*.egg-info
+*.pyc

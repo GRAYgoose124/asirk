@@ -14,7 +14,7 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
 import logging
 
-from core.plugin import Plugin
+from asirk.core.plugin import Plugin
 
 logger = logging.getLogger(__name__)
 

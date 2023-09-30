@@ -21,11 +21,17 @@ logger = logging.getLogger(__name__)
 
 
 default_client_config = {
-    'host': '', 'port': 6667, 'ssl': False,
-    'nick': '', 'pass': '',
-    'ident': '', 'user': '',
-    'mode': '+B', 'unused': '*',
-    'owner': '', 'owner_email': ''
+    "host": "",
+    "port": 6667,
+    "ssl": False,
+    "nick": "",
+    "pass": "",
+    "ident": "",
+    "user": "",
+    "mode": "+B",
+    "unused": "*",
+    "owner": "",
+    "owner_email": "",
 }
 
 
@@ -44,48 +50,49 @@ class IrcProtocol(asyncio.Protocol):
         self.last_dest = None
         self.transport = None
         self.send_buffer = ""
-        self.elapsed = 0 
-        
+        self.elapsed = 0
+
         self.irc_events = {
-            'PRIVMSG': self._handle_privmsg,
-            'NOTICE': self._handle_notice,
-            'JOIN': self._handle_join,
-            'PART': self._handle_part,
-            '001': [self._handle_identify, self._set_mode],
-            '332': self._qno_handle,
-            '353': self._handle_userlist_update,
-            '366': self._qno_handle,
-            '376': self._handle_mode,
-            '401': self._no_such_nick,
-            '403': self._no_such_chan,
-            '433': self._handle_433,
-            'PING': self._handle_server_ping,
+            "PRIVMSG": self._handle_privmsg,
+            "NOTICE": self._handle_notice,
+            "JOIN": self._handle_join,
+            "PART": self._handle_part,
+            "001": [self._handle_identify, self._set_mode],
+            "332": self._qno_handle,
+            "353": self._handle_userlist_update,
+            "366": self._qno_handle,
+            "376": self._handle_mode,
+            "401": self._no_such_nick,
+            "403": self._no_such_chan,
+            "433": self._handle_433,
+            "PING": self._handle_server_ping,
         }
 
     # Protocol Events
     def connection_made(self, transport):
-        logger.debug("CON| {}".format(transport.get_extra_info('peername')))
+        logger.debug("CON| {}".format(transport.get_extra_info("peername")))
         self.transport = transport
 
-        self.send(Irc.nick(self.config['nick']))
-        self.send(Irc.user(self.config['user'], self.config['unused'],
-                           self.config['owner']))
+        self.send(Irc.nick(self.config["nick"]))
+        self.send(
+            Irc.user(self.config["user"], self.config["unused"], self.config["owner"])
+        )
 
     def data_received(self, data):
-        data = data.decode('utf-8')
-        
+        data = data.decode("utf-8")
+
         self.message_buffer += data
 
-        messages = self.message_buffer.split('\r\n')
+        messages = self.message_buffer.split("\r\n")
         prepend_buffer = ""
 
-        if self.message_buffer[-2:] != '\r\n':
+        if self.message_buffer[-2:] != "\r\n":
             prepend_buffer = messages[-1]
             messages = messages[:-1]
 
         for message in messages:
             if len(message) != 0:
-                # TODO: *event API 
+                # TODO: *event API
                 prefix, command, parameters = Irc.split_message(message)
                 prefix = Irc.split_prefix(prefix)
 
@@ -112,7 +119,7 @@ class IrcProtocol(asyncio.Protocol):
         logger.info("<--| {}".format(irc_msg))
 
         self.send_buffer += "{}\r\n".format(irc_msg)
-        self.transport.write(bytes("{}\r\n".format(irc_msg), encoding='utf-8'))
+        self.transport.write(bytes("{}\r\n".format(irc_msg), encoding="utf-8"))
 
     # TODO: Move to Irk?
 
@@ -123,8 +130,8 @@ class IrcProtocol(asyncio.Protocol):
         # TODO: generalize message splitting and keep in Irc
         if len(message) > Irc.msg_size:
             n_msgs = int(len(message) / Irc.msg_size)
-            for i in range(n_msgs+1):
-                frame = message[Irc.msg_size*i:Irc.msg_size*(i+1)]
+            for i in range(n_msgs + 1):
+                frame = message[Irc.msg_size * i : Irc.msg_size * (i + 1)]
                 self.send(Irc.privmsg(dest, frame))
         else:
             self.send(Irc.privmsg(dest, message))
@@ -132,7 +139,7 @@ class IrcProtocol(asyncio.Protocol):
     def send_notice(self, dest, message):
         if dest is None:
             return
-        
+
         self.send(Irc.notice(dest, message))
 
     def set_callback(self, func):
@@ -159,7 +166,7 @@ class IrcProtocol(asyncio.Protocol):
 
         channel, msg = parameters.split(" ", 1)
 
-        if channel != self.config['nick']:
+        if channel != self.config["nick"]:
             self.last_dest = channel
         else:
             self.last_dest = sender
@@ -168,17 +175,17 @@ class IrcProtocol(asyncio.Protocol):
             logger.debug("Malformed PRIVMSG: %s", message)
             return
 
-        tokens = parameters.split(' ')
-        
+        tokens = parameters.split(" ")
+
         try:
-            if tokens[2] == '':
+            if tokens[2] == "":
                 return
         except IndexError:
             return
-            
+
         # Handles the case of ": <text>". Someone started their message
         # with a space.
-        if tokens[1] == ':':
+        if tokens[1] == ":":
             privmsg_command = tokens[2]
             message = "{} {}".format(privmsg_command, " ".join(tokens[2:]))
         else:
@@ -186,16 +193,16 @@ class IrcProtocol(asyncio.Protocol):
             message = "{} {}".format(privmsg_command, " ".join(tokens[2:]))
 
         # CTCP PRIVMSGs
-        if privmsg_command == '\x01PING':
-            self.send(Irc.ctcp_pong(sender, message.split(' ')[1]))
-        elif privmsg_command == '\x01ACTION':
+        if privmsg_command == "\x01PING":
+            self.send(Irc.ctcp_pong(sender, message.split(" ")[1]))
+        elif privmsg_command == "\x01ACTION":
             pass
-        elif privmsg_command[0] == '\x01':
-            logger.debug('Missing CTCP command %s', privmsg_command)
+        elif privmsg_command[0] == "\x01":
+            logger.debug("Missing CTCP command %s", privmsg_command)
 
     def _handle_identify(self, message):
-        if self.config['nick'] != '' and self.config['nick'][0] != '_':
-            self.send(Irc.identify(self.config['pass']))
+        if self.config["nick"] != "" and self.config["nick"][0] != "_":
+            self.send(Irc.identify(self.config["pass"]))
 
     def _handle_notice(self, message):
         # CTCP PONG
@@ -216,19 +223,19 @@ class IrcProtocol(asyncio.Protocol):
         pass
 
     def _set_mode(self, message):
-        self.send(Irc.mode(self.config['nick'], self.config['mode']))
+        self.send(Irc.mode(self.config["nick"], self.config["mode"]))
 
     def _handle_userlist_update(self, message):
         prefix, command, parameters = Irc.split_message(message)
-        split_params = parameters.split(' ')
+        split_params = parameters.split(" ")
         users = split_params[3:][:-1]
 
         channel = split_params[2]
         if len(users) == 0:
             self.users[channel] = []
-
-        # Remove leading ':' from first user.
-        users[0] = users[0][1:]
+        else:
+            # Remove leading ':' from first user.
+            users[0] = users[0][1:]
 
         if channel not in self.users:
             self.users[channel] = users
@@ -240,10 +247,10 @@ class IrcProtocol(asyncio.Protocol):
     def _handle_join(self, message):
         prefix, command, parameters = Irc.split_message(message)
         sender, user, ident = Irc.split_prefix(prefix)
-        
+
         channel = parameters[1:]
 
-        if sender == self.config['nick']:
+        if sender == self.config["nick"]:
             self.channels.append(channel)
             self.users[channel] = []
         else:
@@ -255,7 +262,7 @@ class IrcProtocol(asyncio.Protocol):
 
         channel = parameters.split(" ")[0]
 
-        if sender == self.config['nick']:
+        if sender == self.config["nick"]:
             self.users.pop(channel)
             for i, c in enumerate(self.channels):
                 if c == channel:
@@ -264,9 +271,9 @@ class IrcProtocol(asyncio.Protocol):
             for i, x in enumerate(self.users[channel]):
                 if sender == x:
                     self.users[channel].pop(i)
- 
+
     def _handle_mode(self, message):
-        for channel in self.config['channels']:
+        for channel in self.config["channels"]:
             self.send(Irc.join(channel))
 
     def _handle_server_ping(self, message):
@@ -279,11 +286,14 @@ class IrcProtocol(asyncio.Protocol):
         prefix, command, parameters = Irc.split_message(message)
 
         if re.search("Nickname is already in use", parameters):
-            self.config['nick'] = "_{}".format(self.config['nick'])
-            self.send(Irc.nick(self.config['nick']))
-            self.send(Irc.user(self.config['user'], self.config['unused'],
-                               self.config['owner']))
-            self.send(Irc.mode(self.config['nick'], self.config['mode']))
+            self.config["nick"] = "_{}".format(self.config["nick"])
+            self.send(Irc.nick(self.config["nick"]))
+            self.send(
+                Irc.user(
+                    self.config["user"], self.config["unused"], self.config["owner"]
+                )
+            )
+            self.send(Irc.mode(self.config["nick"], self.config["mode"]))
 
 
 class Irc:
@@ -295,11 +305,11 @@ class Irc:
     """
 
     msg_size = 475
-    
+
     # Message Utility Functions
     @staticmethod
     def split_privmsg(message):
-        channel, message = message.split(' ', 1)
+        channel, message = message.split(" ", 1)
         message = message[1:]
 
         return channel, message
@@ -308,15 +318,15 @@ class Irc:
     def split_message(message):
         prefix, command, parameters = None, None, None
 
-        if message[0] == ':':
-            prefix, msg = message.split(' ', 1)
+        if message[0] == ":":
+            prefix, msg = message.split(" ", 1)
 
-            if ' ' in msg:
-                command, parameters = msg.split(' ', 1)
+            if " " in msg:
+                command, parameters = msg.split(" ", 1)
             else:
                 command = msg
         else:
-            command, parameters = message.split(' ', 1)
+            command, parameters = message.split(" ", 1)
 
         return prefix, command, parameters
 
@@ -325,12 +335,12 @@ class Irc:
         nick, user, ident = None, None, None
 
         if prefix is not None:
-            if '!' in prefix:
-                nick = prefix.split('!')[0][1:]
-                ident = prefix.split('!')[1]
+            if "!" in prefix:
+                nick = prefix.split("!")[0][1:]
+                ident = prefix.split("!")[1]
 
-                if '@' in ident:
-                    user, ident = ident.split('@')
+                if "@" in ident:
+                    user, ident = ident.split("@")
             else:
                 nick = prefix
                 ident = prefix
@@ -383,17 +393,15 @@ class Irc:
     @staticmethod
     def whois(nick):
         return "WHOIS {}".format(nick)
-        
+
     # NICKSERV messages
     @staticmethod
     def register(owner_email, password):
-        return Irc.privmsg("NICKSERV",
-                           "REGISTER {} {}".format(owner_email, password))
+        return Irc.privmsg("NICKSERV", "REGISTER {} {}".format(owner_email, password))
 
     @staticmethod
     def identify(password):
-        return Irc.privmsg("NICKSERV",
-                           "IDENTIFY {}".format(password))
+        return Irc.privmsg("NICKSERV", "IDENTIFY {}".format(password))
 
     # Special Messages
     @staticmethod
@@ -420,7 +428,3 @@ class Irc:
         """
         message = Irc.wrap_ctcp("PING {}".format(timestamp))
         return Irc.notice(destination, message)
-
-
-
-

@@ -14,23 +14,17 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
 import logging
 
-from core.plugin import Plugin
+from asirk.core.plugin import Plugin
 
 logger = logging.getLogger(__name__)
 
 
-ski_string = ''
+class RandUtils(Plugin):
+    def __init__(self, bot):
+        super().__init__(bot)
 
-
-class SKI(Plugin):
-    def __init__(self, protocol):
-        super().__init__(protocol)
-
-        self.commands = {'ski': self.ski}
+        self.commands = {}
         self.admin_commands = {}
 
     def msg_hook(self, event):
-        pass
-
-    def ski(self, event):
         pass

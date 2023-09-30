@@ -18,7 +18,7 @@ import os
 import atexit
 import sys
 
-from core.plugin import Plugin
+from asirk.core.plugin import Plugin
 
 
 logger = logging.getLogger(__name__)
@@ -32,17 +32,17 @@ class BotUtils(Plugin):
         super().__init__(protocol)
 
         self.commands = {
-            'echo': self.echo,
-            'uptime': self.uptime,
-            'help': self.help,
-            'docs': self.mysource
+            "echo": self.echo,
+            "uptime": self.uptime,
+            "help": self.help,
+            "docs": self.mysource,
         }
 
         self.admin_commands = {
-            'bound': self.bound,
-            'conf': self.config,
-            'restart': self.restart,
-            'quit': self.quit
+            "bound": self.bound,
+            "conf": self.config,
+            "restart": self.restart,
+            "quit": self.quit,
         }
 
     def msg_hook(self, event):
@@ -50,12 +50,12 @@ class BotUtils(Plugin):
 
     def echo(self, event):
         """<message> -> bot: <message>"""
-        if event.dest == self.protocol.config['nick']:
+        if event.dest == self.protocol.config["nick"]:
             dest = event.user
         else:
             dest = event.dest
 
-        self.protocol.respond(dest, ' '.join(event.msg.split(' ')[1:]))
+        self.protocol.respond(dest, " ".join(event.msg.split(" ")[1:]))
 
     def mysource(self, event):
         """-> returns git url."""
@@ -65,13 +65,11 @@ class BotUtils(Plugin):
     def uptime(self, event):
         """-> returns the average process time and uptime of the bot."""
         up = (time.time() - self.protocol.starttime) / 60
-        self.protocol.respond(event.dest,
-                              "Uptime: {:.2f} minutes.".format(up))
+        self.protocol.respond(event.dest, "Uptime: {:.2f} minutes.".format(up))
 
     def config(self, event):
         """-> returns the bot's current configuration."""
-        self.protocol.send_notice(event.user,
-                                  "config: {}".format(self.protocol.config))
+        self.protocol.send_notice(event.user, "config: {}".format(self.protocol.config))
 
     def quit(self, event):
         """-> stops the bot and shuts it down."""
@@ -79,41 +77,51 @@ class BotUtils(Plugin):
 
     def restart(self, event):
         """-> stops the bot and restarts it."""
+
         def __restart():
             # TODO: Does not work on windows with spaces in exe path.
             python = sys.executable
             os.execl(python, python, *sys.argv)
-            
+
         atexit.register(__restart)
         self.protocol.bot.stop()
 
     def bound(self, event):
         """<command> -> What plugin that command comes from"""
-        _, bound_cmd, *_ = event.msg.split(' ', 2)
+        _, bound_cmd, *_ = event.msg.split(" ", 2)
 
         acl = self.protocol.bot.admin_commands.copy()
         command_list = dict(self.protocol.bot.commands, **acl)
-    
-        if bound_cmd == 'all':
+
+        if bound_cmd == "all":
             d = {}
             for n, c in command_list.items():
-                cn = str(c.__self__.__class__).split("\'")[1]
+                cn = str(c.__self__.__class__).split("'")[1]
                 cn = cn.split(".")[1]
-         
-                if cn not in d:      
+
+                if cn not in d:
                     d[cn] = [n]
                 else:
-                    d[cn].append(n)            
-            
-            msg = str(d).translate({ord(k): v for k, v in
-                                   {',': None, '{': None, '}': None,
-                                    '[': None, ']': '\r\n',
-                                    '\'': None}.items()})
-            messages = msg.split('\r\n')
+                    d[cn].append(n)
+
+            msg = str(d).translate(
+                {
+                    ord(k): v
+                    for k, v in {
+                        ",": None,
+                        "{": None,
+                        "}": None,
+                        "[": None,
+                        "]": "\r\n",
+                        "'": None,
+                    }.items()
+                }
+            )
+            messages = msg.split("\r\n")
 
             try:
                 for m in messages:
-                    if m[0] == ' ':
+                    if m[0] == " ":
                         m = m[1:]
                     self.protocol.respond(event.dest, m)
             except IndexError:
@@ -124,9 +132,9 @@ class BotUtils(Plugin):
             except KeyError:
                 return
 
-            s = str(msg).split("\'")[1].split(".")[1]
-            msg = "Command \'{}\' from \'{}\'".format(bound_cmd, s)
-                            
+            s = str(msg).split("'")[1].split(".")[1]
+            msg = "Command '{}' from '{}'".format(bound_cmd, s)
+
             self.protocol.respond(event.dest, msg)
 
     def help(self, event):
@@ -134,9 +142,9 @@ class BotUtils(Plugin):
         cmds = []
 
         try:
-            help_cmd = event.msg.split(' ')[1]
-            
-            if help_cmd == 'all':
+            help_cmd = event.msg.split(" ")[1]
+
+            if help_cmd == "all":
                 for cmd in self.protocol.bot.admin_commands:
                     self._single_help(cmd, event.dest)
                 for cmd in self.protocol.bot.commands:
@@ -144,25 +152,21 @@ class BotUtils(Plugin):
             else:
                 self._single_help(help_cmd, event.dest)
         except IndexError:
-            cmds += ["{}*".format(cmd)
-                     for cmd in self.protocol.bot.admin_commands]
+            cmds += ["{}*".format(cmd) for cmd in self.protocol.bot.admin_commands]
             cmds += [cmd for cmd in self.protocol.bot.commands]
-            
+
             self.protocol.respond(event.dest, ", ".join(cmds))
 
     def _single_help(self, help_cmd, destination):
-            try:
-                for line in self.protocol.bot.commands[help_cmd].__doc__.split('\n'):
-                    self.protocol.respond(destination,
-                                          "{} {}".format(help_cmd, line))
-                    return 
-            except (ValueError, IndexError):
-                pass
-            try:
-                for line in self.protocol.bot.admin_commands[help_cmd].__doc__.split('\n'):
-                    self.protocol.respond(destination,
-                                          "{} {}".format(help_cmd, line))
+        try:
+            for line in self.protocol.bot.commands[help_cmd].__doc__.split("\n"):
+                self.protocol.respond(destination, "{} {}".format(help_cmd, line))
                 return
-            except (ValueError, IndexError):
-                pass
-
+        except (ValueError, IndexError):
+            pass
+        try:
+            for line in self.protocol.bot.admin_commands[help_cmd].__doc__.split("\n"):
+                self.protocol.respond(destination, "{} {}".format(help_cmd, line))
+            return
+        except (ValueError, IndexError):
+            pass

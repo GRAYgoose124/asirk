@@ -15,7 +15,7 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
 import logging
 
-from core.plugin import Plugin
+from asirk.core.plugin import Plugin
 
 
 logger = logging.getLogger(__name__)
@@ -24,9 +24,7 @@ logger = logging.getLogger(__name__)
 class Bf(Plugin):
     def __init__(self, protocol):
         super().__init__(protocol)
-        self.commands = {
-            'bf': self.bf
-        }
+        self.commands = {"bf": self.bf}
 
     def msg_hook(self, event):
         pass
@@ -36,7 +34,7 @@ class Bf(Plugin):
         # TODO: API split parameter
         max_loops = 1024
         tape_size = 24
-        tape = [0]*tape_size
+        tape = [0] * tape_size
         tape_pos = int(tape_size / 2)
         i_saved = []
 
@@ -48,7 +46,7 @@ class Bf(Plugin):
         i = 0
 
         # TODO: Bot/IRC helper for handling queries vs channels automatically.
-        if event.dest == self.protocol.config['nick']:
+        if event.dest == self.protocol.config["nick"]:
             dest = event.user
         else:
             dest = event.dest
@@ -56,44 +54,44 @@ class Bf(Plugin):
         # TODO: Clean this the up, wtf.
         try:
             _, code_string, input_string = event.msg.split(" ", 2)
-            code_string = code_string.strip(' ')
+            code_string = code_string.strip(" ")
         except (IndexError, ValueError):
             pass
-        if code_string is None or code_string == '':
+        if code_string is None or code_string == "":
             self.protocol.respond(dest, "Invalid BF command.")
             return
 
         # TODO: Look at BID, fix bf code
         while i < len(code_string):
-            if code_string[i] == '+':
+            if code_string[i] == "+":
                 tape[tape_pos] += 1
-            elif code_string[i] == '-':
+            elif code_string[i] == "-":
                 tape[tape_pos] -= 1
-            elif code_string[i] == '>':
-                if tape_pos >= tape_size-1:
+            elif code_string[i] == ">":
+                if tape_pos >= tape_size - 1:
                     tape_pos = 0
                 else:
                     tape_pos += 1
-            elif code_string[i] == '<':
+            elif code_string[i] == "<":
                 if tape_pos == 0:
-                    tape_pos = tape_size-1
+                    tape_pos = tape_size - 1
                 else:
                     tape_pos -= 1
-            elif code_string[i] == ']':
+            elif code_string[i] == "]":
                 if tape[tape_pos] != 0 and loop_n < max_loops:
                     i = i_saved.pop()
                     loop_n += 1
                 elif loop_n > max_loops:
                     loop_n = 0
-            elif code_string[i] == '[':
-                i_saved.append(i-1)
-            elif code_string[i] == ',':
+            elif code_string[i] == "[":
+                i_saved.append(i - 1)
+            elif code_string[i] == ",":
                 if input_string != "":
                     tape[tape_pos] = ord(input_string[0])
                     input_string = input_string[1:]
                 else:
                     break
-            elif code_string[i] == '.':
+            elif code_string[i] == ".":
                 output_string += chr(tape[tape_pos])
             i += 1
 

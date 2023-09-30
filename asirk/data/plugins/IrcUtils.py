@@ -15,8 +15,8 @@
 import logging
 import time
 
-from core.plugin import Plugin
-from core.irc import Irc
+from asirk.core.plugin import Plugin
+from asirk.core.irc import Irc
 
 
 logger = logging.getLogger(__name__)
@@ -27,31 +27,31 @@ class IrcUtils(Plugin):
         super().__init__(protocol)
 
         self.commands = {
-            'ping': self.ping,
-            'joined': self.joined,
+            "ping": self.ping,
+            "joined": self.joined,
         }
 
         self.admin_commands = {
-            'join': self.join,
-            'part': self.part,
-            'rawecho': self.rawecho
+            "join": self.join,
+            "part": self.part,
+            "rawecho": self.rawecho,
         }
 
     def msg_hook(self, event):
         pass
 
     def rawecho(self, event):
-        self.protocol.send(' '.join(event.msg.split(' ')[1:]))
+        self.protocol.send(" ".join(event.msg.split(" ")[1:]))
 
     def ping(self, event):
         """<user> -> bot pings to <user>."""
         try:
-            user = event.msg.split(' ')[1]
+            user = event.msg.split(" ")[1]
         except IndexError:
             self.protocol.respond(event.dest, "Incorrect ping command.")
             return
 
-        if user == self.protocol.config['nick']:
+        if user == self.protocol.config["nick"]:
             self.protocol.respond(event.dest, "THE FUCK YOU PING YOURSELF?")
             return
 
@@ -61,17 +61,18 @@ class IrcUtils(Plugin):
 
     def join(self, event):
         """<channel> -> bot joins <channel>."""
-        channel = event.msg.split(' ')[1]
+        channel = event.msg.split(" ")[1]
 
         self.protocol.send(Irc.join(channel))
         self.protocol.respond(event.dest, "Joining: {}".format(channel))
 
     def part(self, event):
         """<channel> -> bot parts <channel>."""
-        channel = event.msg.split(' ')[1]
+        channel = event.msg.split(" ")[1]
         self.protocol.send(Irc.part(channel))
         self.protocol.respond(event.dest, "Parted: {}".format(channel))
 
     def joined(self, event):
-        self.protocol.respond(event.dest,
-                              "Channels: {}".format(list(self.protocol.users.keys())))
+        self.protocol.respond(
+            event.dest, "Channels: {}".format(list(self.protocol.users.keys()))
+        )
